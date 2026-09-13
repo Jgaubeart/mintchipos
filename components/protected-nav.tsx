@@ -3,6 +3,8 @@ import Link from "next/link";
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/projects", label: "Projects" },
+  { href: "/agents", label: "Agents" },
+  { href: "/runs", label: "Runs" },
 ];
 
 export function ProtectedNav() {

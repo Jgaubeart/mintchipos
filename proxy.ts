@@ -34,7 +34,10 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLoginPage = pathname === "/login";
   const isProtectedPage =
-    pathname.startsWith("/dashboard") || pathname.startsWith("/projects");
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/projects") ||
+    pathname.startsWith("/agents") ||
+    pathname.startsWith("/runs");
 
   let response: NextResponse;
 

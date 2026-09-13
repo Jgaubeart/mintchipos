@@ -30,6 +30,21 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
   return data;
 }
 
+export async function getProjectById(id: string): Promise<Project | null> {
+  const supabase = await createClient<Database>();
+  const { data, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 function slugify(value: string): string {
   const slug = value
     .toLowerCase()
