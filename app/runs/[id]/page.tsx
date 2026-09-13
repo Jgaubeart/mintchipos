@@ -17,6 +17,7 @@ import { ProtectedNav } from "@/components/protected-nav";
 import { requireUser } from "@/lib/auth/require-user";
 import { formatDate } from "@/lib/projects/format";
 import { getProjectById } from "@/lib/projects/queries";
+import { executeRun } from "./actions";
 
 export const metadata: Metadata = {
   title: "Run | MintChipOS",
@@ -24,12 +25,17 @@ export const metadata: Metadata = {
 
 type RunDetailPageProps = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ error?: string; ok?: string }>;
 };
 
-export default async function RunDetailPage({ params }: RunDetailPageProps) {
+export default async function RunDetailPage({
+  params,
+  searchParams,
+}: RunDetailPageProps) {
   await requireUser();
 
   const { id } = await params;
+  const search = await searchParams;
   const run = await getAgentRunById(id);
 
   if (!run) {
@@ -50,6 +56,8 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
     { label: "Model", value: run.model_name ?? "—" },
     { label: "Provider", value: run.model_provider ?? "—" },
     { label: "Model policy key", value: run.model_policy_key ?? "—" },
+    { label: "Runtime provider", value: run.runtime_provider ?? "—" },
+    { label: "External run ID", value: run.runtime_run_id ?? "—" },
     { label: "Started", value: formatDate(run.started_at) },
     { label: "Completed", value: formatDate(run.completed_at) },
     { label: "Duration", value: run.duration_ms !== null ? `${run.duration_ms} ms` : "—" },
@@ -71,6 +79,21 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
             <span aria-hidden="true">←</span>
             Back to Runs
           </Link>
+
+          {search?.error ? (
+            <p
+              role="alert"
+              className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+            >
+              {search.error}
+            </p>
+          ) : null}
+
+          {search?.ok ? (
+            <p className="mt-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-950/40 dark:text-green-300">
+              {search.ok}
+            </p>
+          ) : null}
 
           <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
             <div className="border-b border-zinc-100 p-6 dark:border-zinc-900 sm:p-8">
@@ -108,6 +131,20 @@ export default async function RunDetailPage({ params }: RunDetailPageProps) {
                 </div>
               ))}
             </dl>
+
+            {run.status === "PENDING" && run.trigger_type === "MANUAL" ? (
+              <div className="border-t border-zinc-100 p-6 dark:border-zinc-900 sm:p-8">
+                <form action={executeRun}>
+                  <input type="hidden" name="run_id" value={run.id} />
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+                  >
+                    Execute with Hermes
+                  </button>
+                </form>
+              </div>
+            ) : null}
 
             {run.error_code || run.error_message ? (
               <div className="border-t border-zinc-100 p-6 dark:border-zinc-900 sm:p-8">

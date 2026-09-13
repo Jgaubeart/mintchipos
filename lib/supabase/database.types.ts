@@ -106,6 +106,8 @@ export type AgentRunRow = {
   retry_count: number;
   error_code: string | null;
   error_message: string | null;
+  runtime_provider: string | null;
+  runtime_run_id: string | null;
   created_by: string | null;
   created_at: string | null;
 };
@@ -407,6 +409,38 @@ export type Database = {
       remove_agent_tool: {
         Args: {
           p_agent_tool_id: string;
+        };
+        Returns: null;
+      };
+      mark_agent_run_running: {
+        Args: {
+          p_agent_run_id: string;
+        };
+        Returns: null;
+      };
+      complete_agent_run_success: {
+        Args: {
+          p_agent_run_id: string;
+          p_output_snapshot: unknown;
+          p_model_provider: string | null;
+          p_model_name: string | null;
+          p_model_policy_key: string | null;
+          p_runtime_provider: string | null;
+          p_runtime_run_id: string | null;
+          p_duration_ms: number | null;
+          p_input_tokens: number | null;
+          p_output_tokens: number | null;
+          p_estimated_cost_usd: number | null;
+        };
+        Returns: null;
+      };
+      fail_agent_run: {
+        Args: {
+          p_agent_run_id: string;
+          p_error_code: string;
+          p_error_message: string;
+          p_runtime_provider?: string | null;
+          p_runtime_run_id?: string | null;
         };
         Returns: null;
       };
