@@ -9,6 +9,11 @@ import type {
   AgentRunStatus,
   AgentTriggerType,
 } from "@/lib/agents/constants";
+import type {
+  SkillSourceType,
+  ToolPermissionLevel,
+  ToolRiskLevel,
+} from "@/lib/capabilities/constants";
 
 export type ProjectRow = {
   id: string;
@@ -118,6 +123,66 @@ export type AgentDefinitionVersion = AgentDefinitionVersionRow;
 export type AgentRun = AgentRunRow;
 export type AgentRunArtifact = AgentRunArtifactRow;
 
+export type SkillRow = {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+  current_version_id: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type SkillVersionRow = {
+  id: string;
+  skill_id: string;
+  version: number;
+  instructions: string;
+  metadata: unknown;
+  source_type: SkillSourceType | null;
+  source_reference: string | null;
+  created_by: string | null;
+  created_at: string | null;
+};
+
+export type ToolRow = {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+  risk_level: ToolRiskLevel;
+  execution_category: string | null;
+  configuration_schema: unknown;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AgentSkillRow = {
+  id: string;
+  agent_definition_id: string;
+  skill_id: string;
+  required: boolean;
+  enabled: boolean;
+  created_at: string | null;
+};
+
+export type AgentToolRow = {
+  id: string;
+  agent_definition_id: string;
+  tool_id: string;
+  permission_level: ToolPermissionLevel;
+  enabled: boolean;
+  created_at: string | null;
+};
+
+export type Skill = SkillRow;
+export type SkillVersion = SkillVersionRow;
+export type Tool = ToolRow;
+export type AgentSkill = AgentSkillRow;
+export type AgentTool = AgentToolRow;
+
 export type Database = {
   public: {
     Tables: {
@@ -161,6 +226,36 @@ export type Database = {
         Row: AgentRunArtifactRow;
         Insert: Partial<AgentRunArtifactRow>;
         Update: Partial<AgentRunArtifactRow>;
+        Relationships: [];
+      };
+      skills: {
+        Row: SkillRow;
+        Insert: Partial<SkillRow>;
+        Update: Partial<SkillRow>;
+        Relationships: [];
+      };
+      skill_versions: {
+        Row: SkillVersionRow;
+        Insert: Partial<SkillVersionRow>;
+        Update: Partial<SkillVersionRow>;
+        Relationships: [];
+      };
+      tools: {
+        Row: ToolRow;
+        Insert: Partial<ToolRow>;
+        Update: Partial<ToolRow>;
+        Relationships: [];
+      };
+      agent_skills: {
+        Row: AgentSkillRow;
+        Insert: Partial<AgentSkillRow>;
+        Update: Partial<AgentSkillRow>;
+        Relationships: [];
+      };
+      agent_tools: {
+        Row: AgentToolRow;
+        Insert: Partial<AgentToolRow>;
+        Update: Partial<AgentToolRow>;
         Relationships: [];
       };
     };
@@ -239,6 +334,81 @@ export type Database = {
           p_relationship: string;
         };
         Returns: string;
+      };
+      create_skill: {
+        Args: {
+          p_key: string;
+          p_name: string;
+          p_instructions: string;
+          p_description?: string | null;
+          p_source_type?: string | null;
+          p_source_reference?: string | null;
+          p_metadata?: unknown;
+        };
+        Returns: string;
+      };
+      add_skill_version: {
+        Args: {
+          p_skill_id: string;
+          p_instructions: string;
+          p_source_type?: string | null;
+          p_source_reference?: string | null;
+          p_metadata?: unknown;
+        };
+        Returns: string;
+      };
+      update_skill: {
+        Args: {
+          p_skill_id: string;
+          p_name: string;
+          p_description?: string | null;
+          p_active?: boolean;
+        };
+        Returns: null;
+      };
+      assign_skill_to_agent: {
+        Args: {
+          p_agent_definition_id: string;
+          p_skill_id: string;
+          p_required?: boolean;
+          p_enabled?: boolean;
+        };
+        Returns: string;
+      };
+      set_agent_skill_enabled: {
+        Args: {
+          p_agent_skill_id: string;
+          p_enabled: boolean;
+        };
+        Returns: null;
+      };
+      remove_agent_skill: {
+        Args: {
+          p_agent_skill_id: string;
+        };
+        Returns: null;
+      };
+      assign_tool_to_agent: {
+        Args: {
+          p_agent_definition_id: string;
+          p_tool_id: string;
+          p_permission_level: string;
+          p_enabled?: boolean;
+        };
+        Returns: string;
+      };
+      set_agent_tool_enabled: {
+        Args: {
+          p_agent_tool_id: string;
+          p_enabled: boolean;
+        };
+        Returns: null;
+      };
+      remove_agent_tool: {
+        Args: {
+          p_agent_tool_id: string;
+        };
+        Returns: null;
       };
     };
   };

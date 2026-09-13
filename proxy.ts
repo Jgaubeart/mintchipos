@@ -37,6 +37,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/projects") ||
     pathname.startsWith("/agents") ||
+    pathname.startsWith("/skills") ||
+    pathname.startsWith("/tools") ||
     pathname.startsWith("/runs");
 
   let response: NextResponse;
