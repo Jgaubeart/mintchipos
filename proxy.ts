@@ -33,7 +33,8 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isLoginPage = pathname === "/login";
-  const isProtectedPage = pathname.startsWith("/dashboard");
+  const isProtectedPage =
+    pathname.startsWith("/dashboard") || pathname.startsWith("/projects");
 
   let response: NextResponse;
 
