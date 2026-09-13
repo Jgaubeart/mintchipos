@@ -119,16 +119,28 @@ alter table public.agent_definition_versions enable row level security;
 alter table public.agent_runs enable row level security;
 alter table public.agent_run_artifacts enable row level security;
 
-create policy if not exists "Agent definitions are readable by authenticated users"
+drop policy if exists "Agent definitions are readable by authenticated users"
+  on public.agent_definitions;
+
+create policy "Agent definitions are readable by authenticated users"
 on public.agent_definitions for select to authenticated using (true);
 
-create policy if not exists "Agent definition versions are readable by authenticated users"
+drop policy if exists "Agent definition versions are readable by authenticated users"
+  on public.agent_definition_versions;
+
+create policy "Agent definition versions are readable by authenticated users"
 on public.agent_definition_versions for select to authenticated using (true);
 
-create policy if not exists "Agent runs are readable by authenticated users"
+drop policy if exists "Agent runs are readable by authenticated users"
+  on public.agent_runs;
+
+create policy "Agent runs are readable by authenticated users"
 on public.agent_runs for select to authenticated using (true);
 
-create policy if not exists "Agent run artifacts are readable by authenticated users"
+drop policy if exists "Agent run artifacts are readable by authenticated users"
+  on public.agent_run_artifacts;
+
+create policy "Agent run artifacts are readable by authenticated users"
 on public.agent_run_artifacts for select to authenticated using (true);
 
 create or replace function public.create_agent_definition(
