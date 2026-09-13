@@ -29,17 +29,19 @@ export class HermesRuntime implements AgentExecutionRuntime {
     const timeoutMs = this.options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
     const deadline = Date.now() + timeoutMs;
 
-    const admission = await client.createRun(
-      {
-        model: HERMES_MODEL,
-        instructions: request.instructions,
-        input: this.toHermesInput(request.input),
-        output_schema: request.outputSchema,
-        allowed_skills: [],
-        allowed_tools: [],
-      },
-      request.runId,
-    );
+    const payload: Record<string, unknown> = {
+      model: HERMES_MODEL,
+      instructions: request.instructions,
+      input: this.toHermesInput(request.input),
+      allowed_skills: [],
+      allowed_tools: [],
+    };
+
+    if (request.outputSchema != null) {
+      payload.output_schema = request.outputSchema;
+    }
+
+    const admission = await client.createRun(payload, request.runId);
 
     const runtimeRunId = admission.run_id ?? admission.id ?? null;
 

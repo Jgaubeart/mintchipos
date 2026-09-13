@@ -1,46 +1,21 @@
-export type ExecutionAcknowledgement = {
-  acknowledged: boolean;
-  projectName: string;
-  summary: string;
-};
-
 export type ValidationResult =
-  | { ok: true; data: ExecutionAcknowledgement }
+  | { ok: true; output: unknown }
   | { ok: false; error: string };
 
-export function validateExecutionAcknowledgement(
-  value: unknown,
+export function validateAgentOutput(
+  output: unknown,
+  outputSchema?: Record<string, unknown> | null,
 ): ValidationResult {
-  if (!isRecord(value)) {
-    return { ok: false, error: "Hermes output must be an object." };
+  if (output === null || output === undefined) {
+    return { ok: false, error: "Hermes output is missing." };
   }
 
-  const acknowledged = value.acknowledged;
-  const projectName = value.projectName ?? value.project_name;
-  const summary = value.summary;
-
-  if (typeof acknowledged !== "boolean") {
-    return { ok: false, error: "Hermes output is missing a boolean 'acknowledged' field." };
+  // Future schema-specific agents can validate `output` against
+  // `outputSchema` here. Generic runs intentionally accept any non-null
+  // Hermes output (string, object, array, number, or boolean).
+  if (outputSchema) {
+    // Reserved for explicit output schema validation.
   }
 
-  if (typeof projectName !== "string" || projectName.trim().length === 0) {
-    return { ok: false, error: "Hermes output is missing a non-empty 'projectName' field." };
-  }
-
-  if (typeof summary !== "string" || summary.trim().length === 0) {
-    return { ok: false, error: "Hermes output is missing a non-empty 'summary' field." };
-  }
-
-  return {
-    ok: true,
-    data: {
-      acknowledged,
-      projectName: projectName.trim(),
-      summary: summary.trim(),
-    },
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return { ok: true, output };
 }

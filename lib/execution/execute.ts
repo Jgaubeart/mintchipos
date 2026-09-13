@@ -9,17 +9,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { extractUserMessage } from "./input";
 import { getExecutionRuntime } from "./runtime";
 import type { AgentExecutionRequest, AgentExecutionResult } from "./types";
-import { validateExecutionAcknowledgement } from "./validation";
-
-const OUTPUT_SCHEMA = {
-  type: "object",
-  required: ["acknowledged", "projectName", "summary"],
-  properties: {
-    acknowledged: { type: "boolean" },
-    projectName: { type: "string" },
-    summary: { type: "string" },
-  },
-};
+import { validateAgentOutput } from "./validation";
 
 export async function executeAgentRun(runId: string): Promise<void> {
   const run = await getAgentRunById(runId);
@@ -43,6 +33,7 @@ export async function executeAgentRun(runId: string): Promise<void> {
   }
 
   const userMessage = extractUserMessage(run.input_snapshot);
+  const outputSchema = asOutputSchema(version.output_schema);
 
   const request: AgentExecutionRequest = {
     runId: run.id,
@@ -52,7 +43,7 @@ export async function executeAgentRun(runId: string): Promise<void> {
     agentKey: agent.key,
     instructions: version.instructions,
     input: userMessage,
-    outputSchema: OUTPUT_SCHEMA,
+    outputSchema,
     modelPolicyKey: version.model_policy_key,
     allowedSkills: [],
     allowedTools: [],
@@ -86,7 +77,7 @@ export async function executeAgentRun(runId: string): Promise<void> {
     throw new Error(message);
   }
 
-  const validation = validateExecutionAcknowledgement(result.output);
+  const validation = validateAgentOutput(result.output, outputSchema);
 
   if (!validation.ok) {
     await supabase.rpc("fail_agent_run", {
@@ -128,4 +119,14 @@ function safeErrorMessage(error: unknown): string {
   }
 
   return "Unknown execution error.";
+}
+
+function asOutputSchema(
+  value: unknown,
+): Record<string, unknown> | undefined {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return undefined;
 }

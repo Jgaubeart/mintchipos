@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { HermesClient } from "../lib/execution/hermes/client";
 import { HermesRuntime } from "../lib/execution/hermes/runtime";
 import { extractUserMessage } from "../lib/execution/input";
+import { validateAgentOutput } from "../lib/execution/validation";
 import type { AgentExecutionRequest } from "../lib/execution/types";
 
 function request(overrides: Partial<AgentExecutionRequest> = {}): AgentExecutionRequest {
@@ -14,9 +15,6 @@ function request(overrides: Partial<AgentExecutionRequest> = {}): AgentExecution
     agentKey: "RESEARCH_STRATEGIST",
     instructions: "Bounded acknowledgement instructions.",
     input: "Reply with exactly: MINTCHIPOS_HERMES_OK",
-    outputSchema: {
-      type: "object",
-    },
     modelPolicyKey: null,
     allowedSkills: [],
     allowedTools: [],
@@ -34,6 +32,26 @@ function jsonResponse(status: number, body: unknown): Response {
 function setupEnv() {
   process.env.HERMES_API_URL = "https://hermes.example/";
   process.env.HERMES_API_KEY = "test-key";
+}
+
+function completedRunFetch(output: unknown): typeof fetch {
+  return async (input, init) => {
+    if (init?.method === "POST") {
+      return jsonResponse(200, {
+        run_id: "hermes-run-generic",
+        status: "started",
+        replayed: false,
+      });
+    }
+
+    return jsonResponse(200, {
+      run_id: "hermes-run-generic",
+      status: "completed",
+      output,
+      model: { name: "deepseek-v4-pro" },
+      usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+    });
+  };
 }
 
 test("successful async run polls started -> running -> completed", async () => {
@@ -305,4 +323,115 @@ test("runtime rejects an empty user message", async () => {
     () => runtime.execute(request({ input: "   " })),
     /missing a user message/,
   );
+});
+
+test("string Hermes output succeeds", async () => {
+  setupEnv();
+  globalThis.fetch = completedRunFetch("MINTCHIPOS_HERMES_OK");
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  const result = await runtime.execute(request());
+
+  assert.equal(result.output, "MINTCHIPOS_HERMES_OK");
+});
+
+test("object Hermes output succeeds", async () => {
+  setupEnv();
+  globalThis.fetch = completedRunFetch({ result: "ok" });
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  const result = await runtime.execute(request());
+
+  assert.deepEqual(result.output, { result: "ok" });
+});
+
+test("array Hermes output succeeds", async () => {
+  setupEnv();
+  globalThis.fetch = completedRunFetch([1, 2, 3]);
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  const result = await runtime.execute(request());
+
+  assert.deepEqual(result.output, [1, 2, 3]);
+});
+
+test("null Hermes output is rejected", async () => {
+  setupEnv();
+  globalThis.fetch = completedRunFetch(null);
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+
+  await assert.rejects(
+    () => runtime.execute(request()),
+    /completed without an output/,
+  );
+});
+
+test("validateAgentOutput accepts generic non-null values", () => {
+  assert.equal(validateAgentOutput("ok").ok, true);
+  assert.equal(validateAgentOutput({ a: 1 }).ok, true);
+  assert.equal(validateAgentOutput([1, 2]).ok, true);
+  assert.equal(validateAgentOutput(0).ok, true);
+  assert.equal(validateAgentOutput(false).ok, true);
+});
+
+test("validateAgentOutput rejects null and undefined", () => {
+  assert.equal(validateAgentOutput(null).ok, false);
+  assert.equal(validateAgentOutput(undefined).ok, false);
+});
+
+test("output_schema is omitted when no schema is configured", async () => {
+  setupEnv();
+  let payload: Record<string, unknown> | undefined;
+
+  globalThis.fetch = async (input, init) => {
+    if (init?.method === "POST") {
+      payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+      return jsonResponse(200, {
+        run_id: "hermes-run-no-schema",
+        status: "started",
+        replayed: false,
+      });
+    }
+
+    return jsonResponse(200, {
+      run_id: "hermes-run-no-schema",
+      status: "completed",
+      output: "MINTCHIPOS_HERMES_OK",
+    });
+  };
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  await runtime.execute(request());
+
+  assert.ok(payload);
+  assert.equal("output_schema" in payload, false);
+});
+
+test("output_schema is sent when explicitly configured", async () => {
+  setupEnv();
+  let payload: Record<string, unknown> | undefined;
+
+  globalThis.fetch = async (input, init) => {
+    if (init?.method === "POST") {
+      payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+      return jsonResponse(200, {
+        run_id: "hermes-run-schema",
+        status: "started",
+        replayed: false,
+      });
+    }
+
+    return jsonResponse(200, {
+      run_id: "hermes-run-schema",
+      status: "completed",
+      output: { result: "ok" },
+    });
+  };
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  await runtime.execute(request({ outputSchema: { type: "object" } }));
+
+  assert.ok(payload);
+  assert.deepEqual(payload.output_schema, { type: "object" });
 });
