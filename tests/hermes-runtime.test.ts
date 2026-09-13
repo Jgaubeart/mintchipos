@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { HermesClient } from "../lib/execution/hermes/client";
 import { HermesRuntime } from "../lib/execution/hermes/runtime";
+import { extractUserMessage } from "../lib/execution/input";
 import type { AgentExecutionRequest } from "../lib/execution/types";
 
 function request(overrides: Partial<AgentExecutionRequest> = {}): AgentExecutionRequest {
@@ -12,10 +13,7 @@ function request(overrides: Partial<AgentExecutionRequest> = {}): AgentExecution
     agentDefinitionVersionId: "agent-version-1",
     agentKey: "RESEARCH_STRATEGIST",
     instructions: "Bounded acknowledgement instructions.",
-    input: {
-      project: "MC-0001 — Mint Chip Website",
-      task: "Acknowledge only.",
-    },
+    input: "Reply with exactly: MINTCHIPOS_HERMES_OK",
     outputSchema: {
       type: "object",
     },
@@ -224,4 +222,87 @@ test("getRun uses the normalized URL and encoded run id", async () => {
   await client.getRun("run/with spaces");
 
   assert.equal(requestedUrl, "https://hermes.example/v1/runs/run%2Fwith%20spaces");
+});
+
+test("Hermes createRun payload contains a valid user message", async () => {
+  setupEnv();
+  let payload: Record<string, unknown> | undefined;
+
+  globalThis.fetch = async (input, init) => {
+    if (init?.method === "POST") {
+      payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+      return jsonResponse(200, {
+        run_id: "hermes-run-message",
+        status: "started",
+        replayed: false,
+      });
+    }
+
+    return jsonResponse(200, {
+      run_id: "hermes-run-message",
+      status: "completed",
+      output: {
+        acknowledged: true,
+        projectName: "MC-0001 — Mint Chip Website",
+        summary: "ok",
+      },
+      model: { name: "deepseek-v4-pro" },
+      usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+    });
+  };
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  await runtime.execute(
+    request({ input: "Reply with exactly: MINTCHIPOS_HERMES_OK" }),
+  );
+
+  assert.ok(payload);
+  assert.deepEqual(payload.input, [
+    { role: "user", content: "Reply with exactly: MINTCHIPOS_HERMES_OK" },
+  ]);
+  assert.equal(payload.model, "deepseek-v4-pro");
+  assert.deepEqual(payload.allowed_skills, []);
+  assert.deepEqual(payload.allowed_tools, []);
+});
+
+test("extractUserMessage reads a user message from a stored snapshot", () => {
+  assert.equal(
+    extractUserMessage({
+      user_message: "Reply with exactly: MINTCHIPOS_HERMES_OK",
+    }),
+    "Reply with exactly: MINTCHIPOS_HERMES_OK",
+  );
+});
+
+test("extractUserMessage supports a plain string snapshot", () => {
+  assert.equal(extractUserMessage("  hello  "), "hello");
+});
+
+test("extractUserMessage rejects missing or empty input", () => {
+  assert.throws(
+    () => extractUserMessage(null),
+    /No user message found in input snapshot/,
+  );
+  assert.throws(
+    () => extractUserMessage({}),
+    /No user message found in input snapshot/,
+  );
+  assert.throws(
+    () => extractUserMessage({ user_message: "   " }),
+    /No user message found in input snapshot/,
+  );
+});
+
+test("runtime rejects an empty user message", async () => {
+  setupEnv();
+
+  globalThis.fetch = async () =>
+    jsonResponse(200, { run_id: "hermes-run-empty", status: "started" });
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+
+  await assert.rejects(
+    () => runtime.execute(request({ input: "   " })),
+    /missing a user message/,
+  );
 });

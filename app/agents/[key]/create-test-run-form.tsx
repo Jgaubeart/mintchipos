@@ -62,6 +62,28 @@ export default function CreateTestRunForm({
         ) : null}
       </div>
 
+      <div>
+        <label
+          htmlFor="input"
+          className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+        >
+          Input
+        </label>
+        <textarea
+          id="input"
+          name="input"
+          required
+          rows={4}
+          placeholder="Enter the instruction or request for this agent..."
+          className={inputClasses}
+        />
+        {state.fieldErrors.input ? (
+          <p className="mt-1.5 text-sm text-red-600">
+            {state.fieldErrors.input}
+          </p>
+        ) : null}
+      </div>
+
       {state.error ? (
         <p
           role="alert"

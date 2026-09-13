@@ -2,6 +2,7 @@ export type CreateTestRunFormState = {
   error: string | null;
   fieldErrors: {
     project_id?: string;
+    input?: string;
   };
 };
 

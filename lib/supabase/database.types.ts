@@ -326,6 +326,7 @@ export type Database = {
           p_agent_definition_id: string;
           p_trigger_reason?: string | null;
           p_workflow_stage?: string | null;
+          p_input_snapshot?: unknown;
         };
         Returns: string;
       };

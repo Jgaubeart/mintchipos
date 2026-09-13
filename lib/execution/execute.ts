@@ -6,6 +6,7 @@ import {
 import { getProjectById } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
+import { extractUserMessage } from "./input";
 import { getExecutionRuntime } from "./runtime";
 import type { AgentExecutionRequest, AgentExecutionResult } from "./types";
 import { validateExecutionAcknowledgement } from "./validation";
@@ -41,6 +42,8 @@ export async function executeAgentRun(runId: string): Promise<void> {
     throw new Error("Run references missing project, agent, or version data.");
   }
 
+  const userMessage = extractUserMessage(run.input_snapshot);
+
   const request: AgentExecutionRequest = {
     runId: run.id,
     projectId: project.id,
@@ -48,11 +51,7 @@ export async function executeAgentRun(runId: string): Promise<void> {
     agentDefinitionVersionId: version.id,
     agentKey: agent.key,
     instructions: version.instructions,
-    input: {
-      project: `${project.project_number ?? "MC-0000"} — ${project.name}`,
-      task:
-        "Return a short structured execution acknowledgement proving that you received the MintChipOS project context. Do not perform external research. Do not use tools. Do not modify files. Do not create project strategy.",
-    },
+    input: userMessage,
     outputSchema: OUTPUT_SCHEMA,
     modelPolicyKey: version.model_policy_key,
     allowedSkills: [],

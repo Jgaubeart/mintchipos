@@ -19,11 +19,19 @@ export async function createTestRun(
   const agentDefinitionId = String(
     formData.get("agent_definition_id") ?? "",
   ).trim();
+  const input = String(formData.get("input") ?? "").trim();
 
   if (!UUID_PATTERN.test(projectId)) {
     return {
       error: null,
       fieldErrors: { project_id: "Select a project." },
+    };
+  }
+
+  if (!input) {
+    return {
+      error: null,
+      fieldErrors: { input: "Enter an input for this agent." },
     };
   }
 
@@ -35,6 +43,7 @@ export async function createTestRun(
   const { data, error } = await supabase.rpc("create_agent_run", {
     p_project_id: projectId,
     p_agent_definition_id: agentDefinitionId,
+    p_input_snapshot: { user_message: input },
   });
 
   if (error || !data) {

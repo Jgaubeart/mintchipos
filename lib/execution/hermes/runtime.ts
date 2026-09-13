@@ -33,7 +33,7 @@ export class HermesRuntime implements AgentExecutionRuntime {
       {
         model: HERMES_MODEL,
         instructions: request.instructions,
-        input: request.input,
+        input: this.toHermesInput(request.input),
         output_schema: request.outputSchema,
         allowed_skills: [],
         allowed_tools: [],
@@ -82,6 +82,28 @@ export class HermesRuntime implements AgentExecutionRuntime {
 
       await sleep(pollIntervalMs);
     }
+  }
+
+  private toHermesInput(input: unknown): unknown {
+    if (typeof input === "string") {
+      const value = input.trim();
+
+      if (!value) {
+        throw new Error("Hermes input is missing a user message.");
+      }
+
+      return [{ role: "user", content: value }];
+    }
+
+    if (Array.isArray(input)) {
+      if (input.length === 0) {
+        throw new Error("Hermes input is missing a user message.");
+      }
+
+      return input;
+    }
+
+    throw new Error("Hermes input must be a string or a message list.");
   }
 
   private toResult(
