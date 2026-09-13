@@ -1,6 +1,7 @@
 -- Agent definitions, definition versions, runs, and run-artifact lineage.
+-- This migration is safe to rerun after a partial execution.
 
-create table public.agent_definitions (
+create table if not exists public.agent_definitions (
   id uuid primary key default gen_random_uuid(),
   key text not null unique,
   name text not null,
@@ -10,7 +11,7 @@ create table public.agent_definitions (
   updated_at timestamptz not null default now()
 );
 
-create table public.agent_definition_versions (
+create table if not exists public.agent_definition_versions (
   id uuid primary key default gen_random_uuid(),
   agent_definition_id uuid not null references public.agent_definitions(id) on delete cascade,
   version integer not null check (version > 0),
@@ -26,10 +27,10 @@ create table public.agent_definition_versions (
     unique (agent_definition_id, version)
 );
 
-create index agent_definition_versions_definition_id_idx
+create index if not exists agent_definition_versions_definition_id_idx
   on public.agent_definition_versions(agent_definition_id);
 
-create table public.agent_runs (
+create table if not exists public.agent_runs (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references public.projects(id) on delete cascade,
   agent_definition_id uuid not null references public.agent_definitions(id) on delete cascade,
@@ -60,11 +61,11 @@ create table public.agent_runs (
   created_at timestamptz not null default now()
 );
 
-create index agent_runs_project_id_idx on public.agent_runs(project_id);
-create index agent_runs_agent_definition_id_idx on public.agent_runs(agent_definition_id);
-create index agent_runs_status_idx on public.agent_runs(status);
+create index if not exists agent_runs_project_id_idx on public.agent_runs(project_id);
+create index if not exists agent_runs_agent_definition_id_idx on public.agent_runs(agent_definition_id);
+create index if not exists agent_runs_status_idx on public.agent_runs(status);
 
-create table public.agent_run_artifacts (
+create table if not exists public.agent_run_artifacts (
   id uuid primary key default gen_random_uuid(),
   agent_run_id uuid not null references public.agent_runs(id) on delete cascade,
   artifact_version_id uuid not null references public.artifact_versions(id) on delete cascade,
@@ -76,14 +77,14 @@ create table public.agent_run_artifacts (
     unique (agent_run_id, artifact_version_id, relationship)
 );
 
-create index agent_run_artifacts_run_id_idx on public.agent_run_artifacts(agent_run_id);
-create index agent_run_artifacts_artifact_version_id_idx
+create index if not exists agent_run_artifacts_run_id_idx on public.agent_run_artifacts(agent_run_id);
+create index if not exists agent_run_artifacts_artifact_version_id_idx
   on public.agent_run_artifacts(artifact_version_id);
 
 alter table public.agent_definitions
-  add column current_version_id uuid references public.agent_definition_versions(id) on delete set null;
+  add column if not exists current_version_id uuid references public.agent_definition_versions(id) on delete set null;
 
-create index agent_definitions_current_version_id_idx
+create index if not exists agent_definitions_current_version_id_idx
   on public.agent_definitions(current_version_id);
 
 create or replace function public.validate_agent_definition_current_version()
@@ -106,6 +107,9 @@ begin
 end;
 $$;
 
+drop trigger if exists validate_agent_definition_current_version_trigger
+  on public.agent_definitions;
+
 create trigger validate_agent_definition_current_version_trigger
 before insert or update on public.agent_definitions
 for each row execute function public.validate_agent_definition_current_version();
@@ -115,23 +119,23 @@ alter table public.agent_definition_versions enable row level security;
 alter table public.agent_runs enable row level security;
 alter table public.agent_run_artifacts enable row level security;
 
-create policy "Agent definitions are readable by authenticated users"
+create policy if not exists "Agent definitions are readable by authenticated users"
 on public.agent_definitions for select to authenticated using (true);
 
-create policy "Agent definition versions are readable by authenticated users"
+create policy if not exists "Agent definition versions are readable by authenticated users"
 on public.agent_definition_versions for select to authenticated using (true);
 
-create policy "Agent runs are readable by authenticated users"
+create policy if not exists "Agent runs are readable by authenticated users"
 on public.agent_runs for select to authenticated using (true);
 
-create policy "Agent run artifacts are readable by authenticated users"
+create policy if not exists "Agent run artifacts are readable by authenticated users"
 on public.agent_run_artifacts for select to authenticated using (true);
 
 create or replace function public.create_agent_definition(
   p_key text,
   p_name text,
-  p_description text default null,
   p_instructions text,
+  p_description text default null,
   p_input_schema jsonb default null,
   p_output_schema jsonb default null,
   p_quality_rubric jsonb default null,
