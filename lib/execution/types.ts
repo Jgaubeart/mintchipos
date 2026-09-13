@@ -6,6 +6,7 @@ export type AgentExecutionRequest = {
   agentKey: string;
   instructions: string;
   input: unknown;
+  projectContext?: string;
   outputSchema?: Record<string, unknown>;
   modelPolicyKey: string | null;
   allowedSkills: unknown[];

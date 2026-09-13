@@ -6,7 +6,13 @@ import {
 import { getProjectById } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
+import { buildProjectContext } from "./context";
 import { extractUserMessage } from "./input";
+import {
+  RESEARCH_ARTIFACT_TITLE,
+  RESEARCH_ARTIFACT_TYPE,
+  shouldPersistResearchArtifact,
+} from "./research";
 import { getExecutionRuntime } from "./runtime";
 import type { AgentExecutionRequest, AgentExecutionResult } from "./types";
 import { validateAgentOutput } from "./validation";
@@ -43,6 +49,7 @@ export async function executeAgentRun(runId: string): Promise<void> {
     agentKey: agent.key,
     instructions: version.instructions,
     input: userMessage,
+    projectContext: buildProjectContext(project),
     outputSchema,
     modelPolicyKey: version.model_policy_key,
     allowedSkills: [],
@@ -87,6 +94,30 @@ export async function executeAgentRun(runId: string): Promise<void> {
     });
 
     throw new Error(validation.error);
+  }
+
+  if (shouldPersistResearchArtifact(agent.key)) {
+    const { error: persistError } = await supabase.rpc(
+      "persist_agent_output_artifact",
+      {
+        p_project_id: project.id,
+        p_agent_run_id: run.id,
+        p_artifact_type: RESEARCH_ARTIFACT_TYPE,
+        p_title: RESEARCH_ARTIFACT_TITLE,
+        p_content: JSON.stringify(result.output, null, 2) ?? "",
+        p_structured_data: result.output,
+      },
+    );
+
+    if (persistError) {
+      await supabase.rpc("fail_agent_run", {
+        p_agent_run_id: run.id,
+        p_error_code: "ARTIFACT_PERSISTENCE_FAILED",
+        p_error_message: persistError.message,
+      });
+
+      throw new Error(persistError.message);
+    }
   }
 
   const durationMs = Date.now() - startedAt;

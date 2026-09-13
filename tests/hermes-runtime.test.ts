@@ -435,3 +435,40 @@ test("output_schema is sent when explicitly configured", async () => {
   assert.ok(payload);
   assert.deepEqual(payload.output_schema, { type: "object" });
 });
+
+test("project context is included in the Hermes input message", async () => {
+  setupEnv();
+  let payload: Record<string, unknown> | undefined;
+
+  globalThis.fetch = async (input, init) => {
+    if (init?.method === "POST") {
+      payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+      return jsonResponse(200, {
+        run_id: "hermes-run-context",
+        status: "started",
+        replayed: false,
+      });
+    }
+
+    return jsonResponse(200, {
+      run_id: "hermes-run-context",
+      status: "completed",
+      output: "ok",
+    });
+  };
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  await runtime.execute(
+    request({
+      input: "Analyze this project.",
+      projectContext: "Project context:\n- Name: Mint Chip Website",
+    }),
+  );
+
+  assert.ok(payload);
+  const messages = payload.input as { role: string; content: string }[];
+
+  assert.equal(messages.length, 1);
+  assert.match(messages[0].content, /Mint Chip Website/);
+  assert.match(messages[0].content, /User request:\nAnalyze this project/);
+});

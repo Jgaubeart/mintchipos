@@ -18,6 +18,7 @@ export type AgentRunListItem = AgentRun & {
 };
 
 export type AgentRunLineageItem = AgentRunArtifact & {
+  artifact_id: string;
   artifact_title: string;
   artifact_type: string;
   version_number: number | null;
@@ -293,6 +294,7 @@ export async function getAgentRunLineage(
 
     return {
       ...link,
+      artifact_id: version?.artifact_id ?? "",
       artifact_title: artifact?.title ?? "—",
       artifact_type: artifact?.artifact_type ?? "—",
       version_number: version?.version ?? null,

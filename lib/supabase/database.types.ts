@@ -338,6 +338,17 @@ export type Database = {
         };
         Returns: string;
       };
+      persist_agent_output_artifact: {
+        Args: {
+          p_project_id: string;
+          p_agent_run_id: string;
+          p_artifact_type: string;
+          p_title: string;
+          p_content: string;
+          p_structured_data?: unknown;
+        };
+        Returns: string;
+      };
       create_skill: {
         Args: {
           p_key: string;

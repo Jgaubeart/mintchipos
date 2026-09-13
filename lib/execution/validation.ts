@@ -1,3 +1,5 @@
+import { validateAgainstSchema } from "./schema";
+
 export type ValidationResult =
   | { ok: true; output: unknown }
   | { ok: false; error: string };
@@ -10,11 +12,12 @@ export function validateAgentOutput(
     return { ok: false, error: "Hermes output is missing." };
   }
 
-  // Future schema-specific agents can validate `output` against
-  // `outputSchema` here. Generic runs intentionally accept any non-null
-  // Hermes output (string, object, array, number, or boolean).
   if (outputSchema) {
-    // Reserved for explicit output schema validation.
+    const result = validateAgainstSchema(output, outputSchema);
+
+    if (!result.ok) {
+      return { ok: false, error: result.error };
+    }
   }
 
   return { ok: true, output };

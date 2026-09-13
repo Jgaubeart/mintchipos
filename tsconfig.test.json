@@ -16,7 +16,10 @@
   },
   "include": [
     "lib/execution/types.ts",
+    "lib/execution/context.ts",
     "lib/execution/input.ts",
+    "lib/execution/research.ts",
+    "lib/execution/schema.ts",
     "lib/execution/validation.ts",
     "lib/execution/hermes/client.ts",
     "lib/execution/hermes/runtime.ts",

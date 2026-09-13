@@ -194,9 +194,18 @@ export default async function RunDetailPage({
                       className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                          {item.artifact_title}
-                        </p>
+                        {item.artifact_id && project ? (
+                          <Link
+                            href={`/projects/${project.slug}/artifacts/${item.artifact_id}`}
+                            className="text-sm font-semibold text-zinc-900 transition hover:text-zinc-600 dark:text-zinc-100 dark:hover:text-zinc-300"
+                          >
+                            {item.artifact_title}
+                          </Link>
+                        ) : (
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            {item.artifact_title}
+                          </p>
+                        )}
                         <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
                           {formatRelationship(item.relationship)}
                         </span>
