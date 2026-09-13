@@ -1,4 +1,4 @@
-export const PROJECT_TYPES = ["INTERNAL", "CUST"] as const;
+export const PROJECT_TYPES = ["INTERNAL", "CUSTOMER", "PREVIEW"] as const;
 
 export type ProjectType = (typeof PROJECT_TYPES)[number];
 
@@ -7,5 +7,6 @@ export const PROJECT_TYPE_OPTIONS: {
   label: string;
 }[] = [
   { value: "INTERNAL", label: "Internal" },
-  { value: "CUST", label: "Customer" },
+  { value: "CUSTOMER", label: "Customer" },
+  { value: "PREVIEW", label: "Preview" },
 ];

@@ -40,35 +40,32 @@ function slugify(value: string): string {
   return slug || "project";
 }
 
-export async function generateProjectIdentifiers(name: string): Promise<{
-  projectNumber: string;
-  slug: string;
-}> {
+export async function getNextProjectNumber(): Promise<string> {
   const supabase = await createClient<Database>();
-  const { data, error } = await supabase
-    .from("projects")
-    .select("project_number, slug");
+  const { data, error } = await supabase.rpc("next_mintchip_project_number");
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const rows = data ?? [];
-  const slugs = new Set<string>();
-  let highestNumber = 0;
-
-  for (const row of rows) {
-    if (row.slug) {
-      slugs.add(row.slug);
-    }
-
-    const match = row.project_number?.match(/^MC-(\d+)$/);
-    if (match) {
-      highestNumber = Math.max(highestNumber, Number(match[1]));
-    }
+  if (!data) {
+    throw new Error("Unable to allocate a project number.");
   }
 
-  const projectNumber = `MC-${String(highestNumber + 1).padStart(4, "0")}`;
+  return data;
+}
+
+export async function generateUniqueSlug(name: string): Promise<string> {
+  const supabase = await createClient<Database>();
+  const { data, error } = await supabase
+    .from("projects")
+    .select("slug");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const slugs = new Set((data ?? []).map((row) => row.slug));
   const baseSlug = slugify(name);
 
   let slug = baseSlug;
@@ -78,5 +75,5 @@ export async function generateProjectIdentifiers(name: string): Promise<{
     suffix += 1;
   }
 
-  return { projectNumber, slug };
+  return slug;
 }

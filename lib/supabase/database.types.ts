@@ -27,6 +27,11 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      next_mintchip_project_number: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+    };
   };
 };

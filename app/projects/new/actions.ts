@@ -3,7 +3,10 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/require-user";
 import { PROJECT_TYPES, type ProjectType } from "@/lib/projects/constants";
-import { generateProjectIdentifiers } from "@/lib/projects/queries";
+import {
+  generateUniqueSlug,
+  getNextProjectNumber,
+} from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 import type { CreateProjectFormState } from "./types";
@@ -39,7 +42,8 @@ export async function createProject(
   }
 
   const supabase = await createClient<Database>();
-  const { projectNumber, slug } = await generateProjectIdentifiers(name);
+  const projectNumber = await getNextProjectNumber();
+  const slug = await generateUniqueSlug(name);
 
   const { error } = await supabase.from("projects").insert({
     name,
