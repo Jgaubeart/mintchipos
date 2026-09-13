@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "noEmit": false,
+    "incremental": false,
+    "outDir": "out/test",
+    "rootDir": ".",
+    "sourceMap": false,
+    "declaration": false
+  },
+  "include": [
+    "lib/execution/types.ts",
+    "lib/execution/validation.ts",
+    "lib/execution/hermes/client.ts",
+    "lib/execution/hermes/runtime.ts",
+    "tests/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "out"
+  ]
+}

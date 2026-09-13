@@ -9,7 +9,7 @@ export type HermesRunResponse = {
   model?: {
     provider?: string;
     name?: string;
-  };
+  } | string;
   input_tokens?: number;
   output_tokens?: number;
   usage?: {
@@ -18,6 +18,7 @@ export type HermesRunResponse = {
     total_tokens?: number;
   };
   estimated_cost_usd?: number;
+  error?: string | { message?: string };
 };
 
 export class HermesClient {
@@ -30,7 +31,7 @@ export class HermesClient {
     payload: unknown,
     idempotencyKey: string,
   ): Promise<HermesRunResponse> {
-    const url = `${this.apiUrl.replace(/\/$/, "")}/v1/runs`;
+    const url = `${this.apiUrl.replace(/\/+$/, "")}/v1/runs`;
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -51,6 +52,30 @@ export class HermesClient {
 
     if (!data || typeof data !== "object") {
       throw new Error("Hermes returned an invalid response.");
+    }
+
+    return data as HermesRunResponse;
+  }
+
+  async getRun(runId: string): Promise<HermesRunResponse> {
+    const url = `${this.apiUrl.replace(/\/+$/, "")}/v1/runs/${encodeURIComponent(runId)}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      const suffix = body ? `: ${body.slice(0, 300)}` : "";
+      throw new Error(`Hermes run request failed with status ${response.status}${suffix}`);
+    }
+
+    const data = await response.json().catch(() => null);
+
+    if (!data || typeof data !== "object") {
+      throw new Error("Hermes returned an invalid run response.");
     }
 
     return data as HermesRunResponse;
