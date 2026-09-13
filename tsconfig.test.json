@@ -18,6 +18,7 @@
     "lib/execution/types.ts",
     "lib/execution/context.ts",
     "lib/execution/input.ts",
+    "lib/execution/output.ts",
     "lib/execution/research.ts",
     "lib/execution/schema.ts",
     "lib/execution/validation.ts",

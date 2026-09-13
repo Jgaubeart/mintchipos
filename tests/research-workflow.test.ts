@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildProjectContext } from "../lib/execution/context";
+import { normalizeStructuredOutput } from "../lib/execution/output";
 import {
   RESEARCH_ARTIFACT_TYPE,
   RESEARCH_STRATEGIST_KEY,
@@ -107,4 +108,56 @@ test("only the Research Strategist triggers research artifact persistence", () =
   assert.equal(shouldPersistResearchArtifact(RESEARCH_STRATEGIST_KEY), true);
   assert.equal(shouldPersistResearchArtifact("CREATIVE_DIRECTOR"), false);
   assert.equal(RESEARCH_ARTIFACT_TYPE, "RESEARCH");
+});
+
+test("normalizeStructuredOutput returns unchanged without a schema", () => {
+  assert.equal(normalizeStructuredOutput("plain text"), "plain text");
+  assert.deepEqual(normalizeStructuredOutput({ a: 1 }), { a: 1 });
+  assert.deepEqual(normalizeStructuredOutput([1, 2]), [1, 2]);
+});
+
+test("normalizeStructuredOutput parses JSON text into native JSON", () => {
+  const json = JSON.stringify(validResearchOutput);
+
+  assert.deepEqual(
+    normalizeStructuredOutput(json, researchSchema),
+    validResearchOutput,
+  );
+});
+
+test("normalizeStructuredOutput extracts a fenced JSON block", () => {
+  const fenced = `Here is the result:\n\`\`\`json\n${JSON.stringify(
+    validResearchOutput,
+  )}\n\`\`\``;
+
+  assert.deepEqual(
+    normalizeStructuredOutput(fenced, researchSchema),
+    validResearchOutput,
+  );
+});
+
+test("normalizeStructuredOutput leaves native values unchanged", () => {
+  assert.deepEqual(
+    normalizeStructuredOutput(validResearchOutput, researchSchema),
+    validResearchOutput,
+  );
+  assert.deepEqual(normalizeStructuredOutput([1, 2], researchSchema), [1, 2]);
+  assert.equal(normalizeStructuredOutput(42, researchSchema), 42);
+  assert.equal(normalizeStructuredOutput(true, researchSchema), true);
+});
+
+test("normalizeStructuredOutput leaves unparseable strings unchanged", () => {
+  assert.equal(
+    normalizeStructuredOutput("not valid json", researchSchema),
+    "not valid json",
+  );
+});
+
+test("JSON text output normalizes and passes schema validation", () => {
+  const normalized = normalizeStructuredOutput(
+    JSON.stringify(validResearchOutput),
+    researchSchema,
+  );
+
+  assert.equal(validateAgentOutput(normalized, researchSchema).ok, true);
 });

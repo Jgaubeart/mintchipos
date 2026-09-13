@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { buildProjectContext } from "./context";
 import { extractUserMessage } from "./input";
+import { normalizeStructuredOutput } from "./output";
 import {
   RESEARCH_ARTIFACT_TITLE,
   RESEARCH_ARTIFACT_TYPE,
@@ -84,7 +85,12 @@ export async function executeAgentRun(runId: string): Promise<void> {
     throw new Error(message);
   }
 
-  const validation = validateAgentOutput(result.output, outputSchema);
+  const normalizedOutput = normalizeStructuredOutput(
+    result.output,
+    outputSchema,
+  );
+
+  const validation = validateAgentOutput(normalizedOutput, outputSchema);
 
   if (!validation.ok) {
     await supabase.rpc("fail_agent_run", {
@@ -104,8 +110,8 @@ export async function executeAgentRun(runId: string): Promise<void> {
         p_agent_run_id: run.id,
         p_artifact_type: RESEARCH_ARTIFACT_TYPE,
         p_title: RESEARCH_ARTIFACT_TITLE,
-        p_content: JSON.stringify(result.output, null, 2) ?? "",
-        p_structured_data: result.output,
+        p_content: JSON.stringify(normalizedOutput, null, 2) ?? "",
+        p_structured_data: normalizedOutput,
       },
     );
 
@@ -126,7 +132,7 @@ export async function executeAgentRun(runId: string): Promise<void> {
     "complete_agent_run_success",
     {
       p_agent_run_id: run.id,
-      p_output_snapshot: result.output,
+      p_output_snapshot: normalizedOutput,
       p_model_provider: result.modelProvider,
       p_model_name: result.modelName,
       p_model_policy_key: version.model_policy_key,
