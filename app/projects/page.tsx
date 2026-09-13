@@ -18,13 +18,21 @@ export default async function ProjectsPage() {
       <ProtectedNav />
       <main className="min-h-full flex-1 bg-zinc-50 dark:bg-black">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
-          <div className="mb-8">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-              Projects
-            </h1>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Read-only project records from Supabase.
-            </p>
+          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+                Projects
+              </h1>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                MintChipOS project records.
+              </p>
+            </div>
+            <Link
+              href="/projects/new"
+              className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+            >
+              New Project
+            </Link>
           </div>
 
           {projects.length === 0 ? (

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
-export async function requireUser(): Promise<void> {
+export async function requireUser(): Promise<User> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -11,4 +12,6 @@ export async function requireUser(): Promise<void> {
   if (error || !user) {
     redirect("/login");
   }
+
+  return user;
 }

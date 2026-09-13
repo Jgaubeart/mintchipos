@@ -1,9 +1,11 @@
+import type { ProjectType } from "@/lib/projects/constants";
+
 export type ProjectRow = {
   id: string;
   project_number: string | null;
   name: string;
   slug: string;
-  project_type: string | null;
+  project_type: ProjectType | null;
   lifecycle_status: string | null;
   production_stage: string | null;
   description: string | null;
