@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProtectedNav } from "@/components/protected-nav";
 import { requireUser } from "@/lib/auth/require-user";
+import { normalizeDesignBrief } from "@/lib/design-brief/defaults";
 import {
   getDesignBriefArtifact,
   getDesignBriefVersions,
@@ -37,7 +38,9 @@ export default async function EditDesignBriefPage({
   const artifact = await getDesignBriefArtifact(project.id);
   const versions = artifact ? await getDesignBriefVersions(artifact.id) : [];
   const current = versions[0]?.structured_data;
-  const initialBrief = isDesignBrief(current) ? current : null;
+  const initialBrief = isDesignBrief(current)
+    ? normalizeDesignBrief(current)
+    : null;
 
   const projectContext: DesignBriefProject = {
     id: project.id,

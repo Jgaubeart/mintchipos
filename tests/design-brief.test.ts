@@ -1,9 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { AUTHENTICITY_RULES } from "../lib/design-brief/constants";
-import { createEmptyDesignBrief } from "../lib/design-brief/defaults";
+import {
+  AUTHENTICITY_RULES,
+  FIVE_PAGE_SUGGESTED_PAGES,
+} from "../lib/design-brief/constants";
+import {
+  createEmptyDesignBrief,
+  normalizeDesignBrief,
+} from "../lib/design-brief/defaults";
 import { buildDesignBriefSummary } from "../lib/design-brief/summary";
-import type { DesignBriefProject } from "../lib/design-brief/types";
+import type {
+  DesignBrief,
+  DesignBriefProject,
+} from "../lib/design-brief/types";
 import { validateDesignBrief } from "../lib/design-brief/validate";
 
 const project: DesignBriefProject = {
@@ -70,4 +79,57 @@ test("authenticity rules are immutable domain constants", () => {
   assert.ok(AUTHENTICITY_RULES.length > 0);
   assert.ok(AUTHENTICITY_RULES.includes("Do not invent testimonials or reviews."));
   assert.ok(AUTHENTICITY_RULES.includes("Do not invent factual business claims."));
+});
+
+test("FIVE_PAGE site format passes validation", () => {
+  const brief = validBrief();
+  brief.siteFormat.format = "FIVE_PAGE";
+  brief.siteFormat.suggestedItems = [...FIVE_PAGE_SUGGESTED_PAGES];
+  brief.siteFormat.selectedItems = [...FIVE_PAGE_SUGGESTED_PAGES];
+  assert.equal(validateDesignBrief(brief).ok, true);
+});
+
+test("selected sections are preserved in site format", () => {
+  const brief = validBrief();
+  brief.siteFormat.selectedItems = ["Hero", "Services"];
+  assert.equal(validateDesignBrief(brief).ok, true);
+  assert.deepEqual(brief.siteFormat.selectedItems, ["Hero", "Services"]);
+});
+
+test("custom site format items pass validation", () => {
+  const brief = validBrief();
+  brief.siteFormat.customItems = [{ id: "custom-1", label: "Pricing" }];
+  assert.equal(validateDesignBrief(brief).ok, true);
+});
+
+test("selected item outside suggested items fails validation", () => {
+  const brief = validBrief();
+  brief.siteFormat.selectedItems = ["Not Suggested"];
+  assert.equal(validateDesignBrief(brief).ok, false);
+});
+
+test("invalid site format fails validation", () => {
+  const brief = validBrief();
+  brief.siteFormat.format = "TEN_PAGE" as never;
+  assert.equal(validateDesignBrief(brief).ok, false);
+});
+
+test("backward compatibility: missing site format is normalized", () => {
+  const brief = validBrief();
+  const legacy = { ...brief } as Partial<DesignBrief>;
+  delete (legacy as { siteFormat?: unknown }).siteFormat;
+
+  const normalized = normalizeDesignBrief(legacy as DesignBrief);
+  assert.equal(normalized.siteFormat.format, "ONE_PAGE");
+  assert.equal(validateDesignBrief(normalized).ok, true);
+});
+
+test("review summary includes site format", () => {
+  const brief = validBrief();
+  assert.match(buildDesignBriefSummary(brief), /Site format: One page/);
+
+  brief.siteFormat.format = "FIVE_PAGE";
+  brief.siteFormat.suggestedItems = [...FIVE_PAGE_SUGGESTED_PAGES];
+  brief.siteFormat.selectedItems = [...FIVE_PAGE_SUGGESTED_PAGES];
+  assert.match(buildDesignBriefSummary(brief), /Site format: Five pages/);
 });

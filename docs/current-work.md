@@ -96,3 +96,13 @@ New routes build cleanly: `/projects/[slug]/design-brief` and
 - No upload/storage system for reference images yet; inspiration stores URLs
   and structured metadata so uploads can be added later.
 - No live website-generation run and no paid model calls were performed.
+
+### Milestone 1.1: Site Format
+
+- Added `siteFormat` (`ONE_PAGE` / `FIVE_PAGE`) to the Design Direction Brief
+  schema and editor.
+- The UI lives in Content & Structure: a One Page / Five Pages toggle with
+  selectable suggested sections/pages plus custom items.
+- Schema keeps `schemaVersion: 1` (additive change); missing `siteFormat` is
+  normalized to the default ONE_PAGE on load for backward compatibility.
+- No database migration required (stored in `structured_data` jsonb).

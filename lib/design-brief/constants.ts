@@ -225,6 +225,32 @@ export type SitePage = (typeof SITE_PAGES)[number];
 export const FORM_COMPLEXITIES = ["NONE", "SIMPLE", "MODERATE", "MULTI_STEP"] as const;
 export type FormComplexity = (typeof FORM_COMPLEXITIES)[number];
 
+export const SITE_FORMATS = ["ONE_PAGE", "FIVE_PAGE"] as const;
+export type SiteFormat = (typeof SITE_FORMATS)[number];
+
+export const DEFAULT_SITE_FORMAT: SiteFormat = "ONE_PAGE";
+export const DEFAULT_SUGGESTION_SOURCE = "DEFAULT";
+
+export const ONE_PAGE_SUGGESTED_SECTIONS = [
+  "Hero",
+  "Services",
+  "About",
+  "Reviews",
+  "Portfolio / Gallery",
+  "Process",
+  "FAQ",
+  "Service Area",
+  "Contact / CTA",
+] as const;
+
+export const FIVE_PAGE_SUGGESTED_PAGES = [
+  "Home",
+  "Services",
+  "Portfolio / Projects",
+  "About",
+  "Contact",
+] as const;
+
 export const CREATIVE_AUTHORITY_LEVELS: {
   level: number;
   key: string;

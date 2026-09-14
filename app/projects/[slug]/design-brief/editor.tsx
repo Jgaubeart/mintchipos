@@ -17,17 +17,21 @@ import {
   CONTENT_BALANCES,
   COPY_DENSITIES,
   CREATIVE_AUTHORITY_LEVELS,
+  DEFAULT_SUGGESTION_SOURCE,
   DESIGN_MODES,
   EFFECTS,
+  FIVE_PAGE_SUGGESTED_PAGES,
   FORM_COMPLEXITIES,
   GEOMETRIES,
   humanizeToken,
   LOGO_STRATEGIES,
   MOTIONS,
+  ONE_PAGE_SUGGESTED_SECTIONS,
   PALETTE_AUTHORITIES,
   PHOTOGRAPHY_STRATEGIES,
   PRIMARY_GOALS,
   SHAPE_LANGUAGES,
+  SITE_FORMATS,
   SITE_PAGES,
   THEMES,
   TYPOGRAPHY_CHARACTERISTICS,
@@ -35,7 +39,10 @@ import {
   VISUAL_SCALES,
   VOICE_OPTIONS,
 } from "@/lib/design-brief/constants";
-import { createEmptyDesignBrief } from "@/lib/design-brief/defaults";
+import {
+  createEmptyDesignBrief,
+  normalizeDesignBrief,
+} from "@/lib/design-brief/defaults";
 import { buildDesignBriefSummary } from "@/lib/design-brief/summary";
 import type {
   AntiInspirationEntry,
@@ -95,13 +102,15 @@ export default function DesignBriefEditor({
       try {
         const draft = window.localStorage.getItem(storageKey);
         if (draft) {
-          return JSON.parse(draft) as DesignBrief;
+          return normalizeDesignBrief(JSON.parse(draft) as DesignBrief);
         }
       } catch {
         // ignore malformed drafts
       }
     }
-    return initialBrief ?? createEmptyDesignBrief(project);
+    return normalizeDesignBrief(
+      initialBrief ?? createEmptyDesignBrief(project),
+    );
   });
   const [step, setStep] = useState(0);
   const [state, formAction, pending] = useActionState(
@@ -394,6 +403,7 @@ function AssetsStep({ brief, updateSection }: SectionProps) {
 function ContentStructureStep({ brief, updateSection }: SectionProps) {
   return (
     <Section title="Content and structure">
+      <SiteFormatBlock brief={brief} updateSection={updateSection} />
       <ChipMulti label="Voice" options={VOICE_OPTIONS.map((value) => ({ value, label: humanizeToken(value) }))} selected={brief.contentDirection.voice} onChange={(selected) => updateSection("contentDirection", { voice: selected as DesignBrief["contentDirection"]["voice"] })} />
       <TextArea label="Desired messaging" value={brief.contentDirection.desiredMessaging} onChange={(value) => updateSection("contentDirection", { desiredMessaging: value })} />
       <Grid>
@@ -414,6 +424,132 @@ function ContentStructureStep({ brief, updateSection }: SectionProps) {
         <TextArea label="Sections Creative Director may determine" value={brief.siteStructure.creativeDirectorSections.join("\n")} onChange={(value) => updateSection("siteStructure", { creativeDirectorSections: lines(value) })} />
       </Grid>
     </Section>
+  );
+}
+
+function SiteFormatBlock({ brief, updateSection }: SectionProps) {
+  const siteFormat = brief.siteFormat;
+  const isFivePage = siteFormat.format === "FIVE_PAGE";
+
+  const setFormat = (format: DesignBrief["siteFormat"]["format"]) => {
+    const suggestions =
+      format === "FIVE_PAGE"
+        ? [...FIVE_PAGE_SUGGESTED_PAGES]
+        : [...ONE_PAGE_SUGGESTED_SECTIONS];
+    updateSection("siteFormat", {
+      format,
+      suggestionSource: DEFAULT_SUGGESTION_SOURCE,
+      suggestedItems: suggestions,
+      selectedItems: suggestions,
+    });
+  };
+
+  const toggleSuggestion = (label: string) => {
+    const selected = siteFormat.selectedItems.includes(label)
+      ? siteFormat.selectedItems.filter((item) => item !== label)
+      : [...siteFormat.selectedItems, label];
+    updateSection("siteFormat", { selectedItems: selected });
+  };
+
+  const addCustom = () => {
+    updateSection("siteFormat", {
+      customItems: [...siteFormat.customItems, { id: makeId(), label: "" }],
+    });
+  };
+
+  const updateCustom = (id: string, label: string) => {
+    updateSection("siteFormat", {
+      customItems: siteFormat.customItems.map((item) =>
+        item.id === id ? { ...item, label } : item,
+      ),
+    });
+  };
+
+  const removeCustom = (id: string) => {
+    updateSection("siteFormat", {
+      customItems: siteFormat.customItems.filter((item) => item.id !== id),
+    });
+  };
+
+  return (
+    <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        Site Format
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {SITE_FORMATS.map((format) => {
+          const active = siteFormat.format === format;
+          return (
+            <button
+              key={format}
+              type="button"
+              onClick={() => setFormat(format)}
+              className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
+                active
+                  ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
+                  : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300"
+              }`}
+            >
+              {format === "FIVE_PAGE" ? "Five Pages" : "One Page"}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="mt-4 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        {isFivePage ? "Suggested Pages" : "Suggested Sections"}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {siteFormat.suggestedItems.map((label) => {
+          const selected = siteFormat.selectedItems.includes(label);
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => toggleSuggestion(label)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                selected
+                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-400"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="mt-4 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        {isFivePage ? "Custom Pages" : "Custom Sections"}
+      </p>
+      <div className="mt-2 space-y-2">
+        {siteFormat.customItems.map((item) => (
+          <div key={item.id} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={item.label}
+              placeholder="Custom name"
+              onChange={(event) => updateCustom(item.id, event.target.value)}
+              className={inputClasses}
+            />
+            <button
+              type="button"
+              onClick={() => removeCustom(item.id)}
+              className="text-sm text-zinc-400 hover:text-red-600"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addCustom}
+          className="text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+        >
+          + Add custom {isFivePage ? "page" : "section"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -473,6 +609,13 @@ function lines(value: string): string[] {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+function makeId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `item-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {

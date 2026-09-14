@@ -19,6 +19,7 @@ import {
   PHOTOGRAPHY_STRATEGIES,
   PRIMARY_GOALS,
   SHAPE_LANGUAGES,
+  SITE_FORMATS,
   SITE_PAGES,
   THEMES,
   TYPOGRAPHY_CHARACTERISTICS,
@@ -104,6 +105,7 @@ export function validateDesignBrief(value: unknown): DesignBriefValidationResult
   assertSingle(brief.contentDirection?.copyDensity, COPY_DENSITIES, "contentDirection.copyDensity", errors);
 
   assertEnumArray(brief.siteStructure?.pages, SITE_PAGES, "siteStructure.pages", errors);
+  assertSiteFormat(brief.siteFormat, errors);
   assertSingle(brief.demoConversionUx?.formComplexity, FORM_COMPLEXITIES, "demoConversionUx.formComplexity", errors);
 
   assertRange(brief.creativeAuthority?.level, "creativeAuthority.level", errors);
@@ -145,6 +147,62 @@ function assertEnumArray(
   for (const item of value) {
     if (typeof item !== "string" || !allowed.includes(item)) {
       errors.push(`${path} contains an invalid value: ${String(item)}.`);
+    }
+  }
+}
+
+function assertStringArray(
+  value: unknown,
+  path: string,
+  errors: string[],
+): void {
+  if (value === undefined || value === null) {
+    return;
+  }
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    errors.push(`${path} must be an array of strings.`);
+  }
+}
+
+function assertSiteFormat(value: unknown, errors: string[]): void {
+  if (!isRecord(value)) {
+    errors.push("siteFormat must be an object.");
+    return;
+  }
+
+  const siteFormat = value as unknown as {
+    format?: unknown;
+    suggestionSource?: unknown;
+    suggestedItems?: unknown;
+    selectedItems?: unknown;
+    customItems?: unknown;
+  };
+
+  assertSingle(siteFormat.format, SITE_FORMATS, "siteFormat.format", errors);
+
+  if (typeof siteFormat.suggestionSource !== "string") {
+    errors.push("siteFormat.suggestionSource must be a string.");
+  }
+
+  assertStringArray(siteFormat.suggestedItems, "siteFormat.suggestedItems", errors);
+  assertStringArray(siteFormat.selectedItems, "siteFormat.selectedItems", errors);
+
+  if (Array.isArray(siteFormat.suggestedItems) && Array.isArray(siteFormat.selectedItems)) {
+    const suggested = new Set(siteFormat.suggestedItems as string[]);
+    for (const item of siteFormat.selectedItems as string[]) {
+      if (!suggested.has(item)) {
+        errors.push(`siteFormat.selectedItems contains an item not in suggestedItems: ${item}.`);
+      }
+    }
+  }
+
+  if (!Array.isArray(siteFormat.customItems)) {
+    errors.push("siteFormat.customItems must be an array.");
+  } else {
+    for (const item of siteFormat.customItems) {
+      if (!isRecord(item) || typeof item.id !== "string" || typeof item.label !== "string" || !item.label.trim()) {
+        errors.push("siteFormat.customItems entries require an id and a non-empty label.");
+      }
     }
   }
 }

@@ -65,6 +65,12 @@ export function buildDesignBriefSummary(brief: DesignBrief): string {
     );
   }
 
+  const itemCount =
+    brief.siteFormat.selectedItems.length + brief.siteFormat.customItems.length;
+  lines.push(
+    `Site format: ${brief.siteFormat.format === "FIVE_PAGE" ? "Five pages" : "One page"} (${itemCount} ${brief.siteFormat.format === "FIVE_PAGE" ? "pages" : "sections"})`,
+  );
+
   const authority = CREATIVE_AUTHORITY_LEVELS.find(
     (level) => level.level === brief.creativeAuthority.level,
   );

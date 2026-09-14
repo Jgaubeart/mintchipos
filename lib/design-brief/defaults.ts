@@ -1,4 +1,9 @@
-import { DESIGN_BRIEF_SCHEMA_VERSION } from "./constants";
+import {
+  DEFAULT_SITE_FORMAT,
+  DEFAULT_SUGGESTION_SOURCE,
+  DESIGN_BRIEF_SCHEMA_VERSION,
+  ONE_PAGE_SUGGESTED_SECTIONS,
+} from "./constants";
 import type { DesignBrief, DesignBriefProject } from "./types";
 
 export function createEmptyDesignBrief(
@@ -134,6 +139,14 @@ export function createEmptyDesignBrief(
       creativeDirectorSections: [],
     },
 
+    siteFormat: {
+      format: DEFAULT_SITE_FORMAT,
+      suggestionSource: DEFAULT_SUGGESTION_SOURCE,
+      suggestedItems: [...ONE_PAGE_SUGGESTED_SECTIONS],
+      selectedItems: [...ONE_PAGE_SUGGESTED_SECTIONS],
+      customItems: [],
+    },
+
     demoConversionUx: {
       primaryCtaConcept: "",
       secondaryCtaConcept: "",
@@ -161,5 +174,22 @@ export function createEmptyDesignBrief(
     },
 
     creativeDirectorNotes: "",
+  };
+}
+
+export function normalizeDesignBrief(brief: DesignBrief): DesignBrief {
+  if (brief.siteFormat) {
+    return brief;
+  }
+
+  return {
+    ...brief,
+    siteFormat: {
+      format: DEFAULT_SITE_FORMAT,
+      suggestionSource: DEFAULT_SUGGESTION_SOURCE,
+      suggestedItems: [...ONE_PAGE_SUGGESTED_SECTIONS],
+      selectedItems: [...ONE_PAGE_SUGGESTED_SECTIONS],
+      customItems: [],
+    },
   };
 }

@@ -19,6 +19,7 @@ import type {
   PrimaryGoal,
   ShapeLanguage,
   SitePage,
+  SiteFormat,
   Theme,
   TypographyCharacteristic,
   VisualComplexity,
@@ -43,6 +44,11 @@ export type AntiInspirationEntry = {
   name: string;
   dislikedAspects: string[];
   notes: string;
+};
+
+export type SiteFormatItem = {
+  id: string;
+  label: string;
 };
 
 export type DesignBrief = {
@@ -159,6 +165,14 @@ export type DesignBrief = {
     requiredHomepageSections: string[];
     requestedSections: string[];
     creativeDirectorSections: string[];
+  };
+
+  siteFormat: {
+    format: SiteFormat;
+    suggestionSource: string;
+    suggestedItems: string[];
+    selectedItems: string[];
+    customItems: SiteFormatItem[];
   };
 
   demoConversionUx: {
