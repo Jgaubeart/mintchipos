@@ -41,3 +41,12 @@ Branch: `integration/website-factory`
 Apply the migrations after dry-run review, configure Vercel preview access,
 then run the first controlled live pilot through `/factory`.
 
+## External access inspection
+
+- GitHub: `gh auth status` reports the default `Jgaubeart` token is invalid.
+  `git ls-remote origin HEAD` could not reach GitHub from this environment.
+- Supabase: the local worktree is not linked to a project ref, so
+  `supabase migration list` cannot read remote state without re-linking.
+- Vercel: CLI is not installed and no MintChipOS token/project config is
+  present. No live preview was created.
+- Railway: CLI is not installed and no service/token state is present.
