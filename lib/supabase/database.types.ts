@@ -26,6 +26,10 @@ import type {
   ScanStatus,
   VisualAuditStatus,
 } from "@/lib/prospecting/constants";
+import type {
+  WebsiteFactoryRunStatus,
+  WebsiteFactoryStage,
+} from "@/lib/website-factory/constants";
 
 export type ProjectRow = {
   id: string;
@@ -226,6 +230,26 @@ export type DeploymentRow = {
 
 export type Deployment = DeploymentRow;
 
+export type WebsiteFactoryRunRow = {
+  id: string;
+  project_id: string;
+  website_url: string;
+  business_name: string | null;
+  status: WebsiteFactoryRunStatus;
+  current_stage: WebsiteFactoryStage | null;
+  progress: number;
+  stages: Record<string, unknown>[];
+  artifacts: Record<string, unknown>[];
+  preview_url: string | null;
+  provider_deployment_id: string | null;
+  failure_reason: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type WebsiteFactoryRun = WebsiteFactoryRunRow;
+
 export type ProspectScanRow = {
   id: string;
   location: string;
@@ -392,6 +416,12 @@ export type Database = {
         Row: DeploymentRow;
         Insert: Partial<DeploymentRow>;
         Update: Partial<DeploymentRow>;
+        Relationships: [];
+      };
+      website_factory_runs: {
+        Row: WebsiteFactoryRunRow;
+        Insert: Partial<WebsiteFactoryRunRow>;
+        Update: Partial<WebsiteFactoryRunRow>;
         Relationships: [];
       };
       prospect_scans: {

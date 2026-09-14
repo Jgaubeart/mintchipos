@@ -216,3 +216,34 @@ Run `npm run verify`. See `docs/prospecting-architecture.md`,
 - Migration `20260913110000_prospecting.sql` is created but not applied to the
   live Supabase database (requires explicit approval).
 - The scan UI uses fixture data until a live provider is authorized.
+
+## Milestone 3: Autonomous Website Factory
+
+Branch: `integration/website-factory`.
+
+### Scope
+
+Integrate completed workstreams and build the URL-in, preview-out Website
+Factory foundation. This milestone does not implement billing, outreach,
+production deployment, or paid model calls.
+
+### Architecture
+
+- `lib/website-factory/` contains deterministic research, classification,
+  playbook selection, auto brief generation, strategy, builder, QA, and
+  pipeline orchestration.
+- The pipeline owns stage progression and bounded repair. Hermes remains an
+  execution runtime and Supabase remains the canonical state store.
+- Preview deployment reuses the `DemoDeploymentProvider` boundary.
+
+### Evidence
+
+Run `npm run verify`. See `docs/website-factory-status.md`.
+
+### Known limitations
+
+- Migration `20260913130000_website_factory_runs.sql` is created but not
+  applied to the live Supabase database (requires explicit approval).
+- The default research provider is fixture-tested; live HTTP research is
+  implemented but not live-verified.
+- Preview deployment is fixture-tested only.
