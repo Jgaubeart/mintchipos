@@ -14,6 +14,12 @@ import type {
   ToolPermissionLevel,
   ToolRiskLevel,
 } from "@/lib/capabilities/constants";
+import type {
+  DemoProviderName,
+  DeploymentStatus,
+  DeploymentType,
+  PreviewVisibility,
+} from "@/lib/demo-staging/constants";
 
 export type ProjectRow = {
   id: string;
@@ -185,6 +191,35 @@ export type Tool = ToolRow;
 export type AgentSkill = AgentSkillRow;
 export type AgentTool = AgentToolRow;
 
+export type DeploymentRow = {
+  id: string;
+  project_id: string;
+  prospect_id: string | null;
+  deployment_type: DeploymentType;
+  status: DeploymentStatus;
+  provider: DemoProviderName;
+  provider_deployment_id: string | null;
+  preview_url: string | null;
+  preview_hostname: string | null;
+  preview_visibility: PreviewVisibility;
+  source_artifact_id: string | null;
+  source_artifact_type: string | null;
+  source_commit: string | null;
+  build_id: string | null;
+  version: number;
+  metadata: Record<string, unknown>;
+  is_current: boolean;
+  failure_reason: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  deployed_at: string | null;
+  failed_at: string | null;
+  superseded_at: string | null;
+};
+
+export type Deployment = DeploymentRow;
+
 export type Database = {
   public: {
     Tables: {
@@ -258,6 +293,12 @@ export type Database = {
         Row: AgentToolRow;
         Insert: Partial<AgentToolRow>;
         Update: Partial<AgentToolRow>;
+        Relationships: [];
+      };
+      deployments: {
+        Row: DeploymentRow;
+        Insert: Partial<DeploymentRow>;
+        Update: Partial<DeploymentRow>;
         Relationships: [];
       };
     };

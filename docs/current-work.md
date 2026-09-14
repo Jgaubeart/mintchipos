@@ -150,3 +150,34 @@ Routes `/playbooks`, `/playbooks/new`, `/playbooks/[id]` build cleanly.
 - The Playbook Brief UI is intentionally minimal; editing re-runs the brief as
   a new artifact version.
 - No paid model research was executed during implementation.
+
+## Parallel Workstream P2: Demo Staging Foundation
+
+Branch: `workstream-demo-staging` (based on `milestone-1-design-brief` at
+`d859884`). This runs in parallel with Milestone 2 and P1 without modifying
+their workflows.
+
+### Scope
+
+Adds a deployment/preview domain model, provider boundary, deterministic
+preview naming, version lineage, safe lifecycle, and internal deployment UI.
+Only `PREVIEW` staging behavior is implemented.
+
+### Key decisions
+
+- Dedicated `deployments` table; no generator or outreach code is added.
+- Provider abstraction keeps the domain model Vercel-compatible but not
+  Vercel-coupled.
+- Preview URLs are deterministic and collision-safe.
+- Old previews are preserved and marked superseded, never auto-deleted.
+
+### Evidence
+
+Run `npm run verify`. See `docs/demo-staging.md`.
+
+### Known limitations
+
+- Migration `20260913120000_demo_deployments.sql` is created but not applied
+  to the live Supabase database (requires explicit approval).
+- No live Vercel verification was performed; Vercel CLI and credentials are
+  not available in this environment.
