@@ -430,6 +430,14 @@ export type Database = {
         };
         Returns: null;
       };
+      set_agent_run_runtime: {
+        Args: {
+          p_agent_run_id: string;
+          p_runtime_provider: string;
+          p_runtime_run_id: string;
+        };
+        Returns: null;
+      };
       complete_agent_run_success: {
         Args: {
           p_agent_run_id: string;

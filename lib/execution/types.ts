@@ -1,3 +1,7 @@
+export type RuntimeRunIdCallback = (
+  runtimeRunId: string,
+) => void | Promise<void>;
+
 export type AgentExecutionRequest = {
   runId: string;
   projectId: string;
@@ -8,6 +12,8 @@ export type AgentExecutionRequest = {
   input: unknown;
   projectContext?: string;
   outputSchema?: Record<string, unknown>;
+  executionTimeoutMs?: number;
+  onRuntimeRunId?: RuntimeRunIdCallback;
   modelPolicyKey: string | null;
   allowedSkills: unknown[];
   allowedTools: unknown[];

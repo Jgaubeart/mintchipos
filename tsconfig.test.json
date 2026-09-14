@@ -17,6 +17,7 @@
   "include": [
     "lib/execution/types.ts",
     "lib/execution/context.ts",
+    "lib/execution/failure.ts",
     "lib/execution/input.ts",
     "lib/execution/output.ts",
     "lib/execution/research.ts",

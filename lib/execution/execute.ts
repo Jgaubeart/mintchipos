@@ -7,11 +7,13 @@ import { getProjectById } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { buildProjectContext } from "./context";
+import { toExecutionFailure } from "./failure";
 import { extractUserMessage } from "./input";
 import { normalizeStructuredOutput } from "./output";
 import {
   RESEARCH_ARTIFACT_TITLE,
   RESEARCH_ARTIFACT_TYPE,
+  resolveExecutionTimeoutMs,
   shouldPersistResearchArtifact,
 } from "./research";
 import { getExecutionRuntime } from "./runtime";
@@ -41,6 +43,7 @@ export async function executeAgentRun(runId: string): Promise<void> {
 
   const userMessage = extractUserMessage(run.input_snapshot);
   const outputSchema = asOutputSchema(version.output_schema);
+  const supabase = await createClient<Database>();
 
   const request: AgentExecutionRequest = {
     runId: run.id,
@@ -52,12 +55,23 @@ export async function executeAgentRun(runId: string): Promise<void> {
     input: userMessage,
     projectContext: buildProjectContext(project),
     outputSchema,
+    executionTimeoutMs: resolveExecutionTimeoutMs(agent.key),
+    onRuntimeRunId: async (runtimeRunId) => {
+      try {
+        await supabase.rpc("set_agent_run_runtime", {
+          p_agent_run_id: run.id,
+          p_runtime_provider: "HERMES",
+          p_runtime_run_id: runtimeRunId,
+        });
+      } catch {
+        // Best-effort: terminal paths still persist the runtime run id.
+      }
+    },
     modelPolicyKey: version.model_policy_key,
     allowedSkills: [],
     allowedTools: [],
   };
 
-  const supabase = await createClient<Database>();
   const { error: markError } = await supabase.rpc("mark_agent_run_running", {
     p_agent_run_id: run.id,
   });
@@ -74,15 +88,17 @@ export async function executeAgentRun(runId: string): Promise<void> {
   try {
     result = await runtime.execute(request);
   } catch (error) {
-    const message = safeErrorMessage(error);
+    const failure = toExecutionFailure(error);
 
     await supabase.rpc("fail_agent_run", {
       p_agent_run_id: run.id,
-      p_error_code: "HERMES_EXECUTION_FAILED",
-      p_error_message: message,
+      p_error_code: failure.errorCode,
+      p_error_message: failure.errorMessage,
+      p_runtime_provider: "HERMES",
+      p_runtime_run_id: failure.runtimeRunId,
     });
 
-    throw new Error(message);
+    throw new Error(failure.errorMessage);
   }
 
   const normalizedOutput = normalizeStructuredOutput(
@@ -148,14 +164,6 @@ export async function executeAgentRun(runId: string): Promise<void> {
   if (completeError) {
     throw new Error(completeError.message);
   }
-}
-
-function safeErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return "Unknown execution error.";
 }
 
 function asOutputSchema(

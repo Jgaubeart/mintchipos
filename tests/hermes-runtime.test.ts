@@ -1,8 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { HermesClient } from "../lib/execution/hermes/client";
-import { HermesRuntime } from "../lib/execution/hermes/runtime";
+import {
+  DEFAULT_POLL_TIMEOUT_MS,
+  HermesPollTimeoutError,
+  HermesRuntime,
+} from "../lib/execution/hermes/runtime";
+import { toExecutionFailure } from "../lib/execution/failure";
 import { extractUserMessage } from "../lib/execution/input";
+import { resolveExecutionTimeoutMs } from "../lib/execution/research";
 import { validateAgentOutput } from "../lib/execution/validation";
 import type { AgentExecutionRequest } from "../lib/execution/types";
 
@@ -153,7 +159,20 @@ test("timeout throws a clear error", async () => {
 
   const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 8 });
 
-  await assert.rejects(() => runtime.execute(request()), /timed out/);
+  const error = await runtime
+    .execute(request())
+    .then(
+      () => {
+        throw new Error("Expected the run to time out.");
+      },
+      (caught: unknown) => caught,
+    );
+
+  assert.ok(error instanceof HermesPollTimeoutError);
+  assert.match(error.message, /hermes-run-timeout/);
+  assert.match(error.message, /timed out/);
+  assert.match(error.message, /may still be active/);
+  assert.equal(error.timeoutMs, 8);
 });
 
 test("malformed admission response without run_id is rejected", async () => {
@@ -471,4 +490,122 @@ test("project context is included in the Hermes input message", async () => {
   assert.equal(messages.length, 1);
   assert.match(messages[0].content, /Mint Chip Website/);
   assert.match(messages[0].content, /User request:\nAnalyze this project/);
+});
+
+test("generic default Hermes timeout is 180000 ms", () => {
+  assert.equal(DEFAULT_POLL_TIMEOUT_MS, 180_000);
+});
+
+test("Research Strategist timeout resolves to 300000 ms", () => {
+  assert.equal(resolveExecutionTimeoutMs("RESEARCH_STRATEGIST"), 300_000);
+  assert.equal(resolveExecutionTimeoutMs("CREATIVE_DIRECTOR"), undefined);
+});
+
+test("poll timeout maps to HERMES_POLL_TIMEOUT with the runtime run id", () => {
+  const failure = toExecutionFailure(
+    new HermesPollTimeoutError("hermes-run-abc", 180_000),
+  );
+
+  assert.equal(failure.errorCode, "HERMES_POLL_TIMEOUT");
+  assert.equal(failure.runtimeRunId, "hermes-run-abc");
+  assert.match(failure.errorMessage, /hermes-run-abc/);
+});
+
+test("generic execution failure keeps HERMES_EXECUTION_FAILED", () => {
+  const failure = toExecutionFailure(new Error("something broke"));
+
+  assert.equal(failure.errorCode, "HERMES_EXECUTION_FAILED");
+  assert.equal(failure.runtimeRunId, undefined);
+});
+
+test("runtime reports the admitted run id as early as practical", async () => {
+  setupEnv();
+  let reportedRunId: string | undefined;
+
+  globalThis.fetch = async (input, init) => {
+    if (init?.method === "POST") {
+      return jsonResponse(200, {
+        run_id: "hermes-run-admit",
+        status: "started",
+        replayed: false,
+      });
+    }
+
+    return jsonResponse(200, {
+      run_id: "hermes-run-admit",
+      status: "completed",
+      output: "ok",
+    });
+  };
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  await runtime.execute(
+    request({
+      onRuntimeRunId: (runtimeRunId) => {
+        reportedRunId = runtimeRunId;
+      },
+    }),
+  );
+
+  assert.equal(reportedRunId, "hermes-run-admit");
+});
+
+test("request executionTimeoutMs overrides the runtime default", async () => {
+  setupEnv();
+
+  globalThis.fetch = async (input, init) => {
+    if (init?.method === "POST") {
+      return jsonResponse(200, {
+        run_id: "hermes-run-override",
+        status: "started",
+        replayed: false,
+      });
+    }
+
+    return jsonResponse(200, {
+      run_id: "hermes-run-override",
+      status: "started",
+    });
+  };
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  const error = await runtime
+    .execute(request({ executionTimeoutMs: 5 }))
+    .then(
+      () => {
+        throw new Error("Expected the run to time out.");
+      },
+      (caught: unknown) => caught,
+    );
+
+  assert.ok(error instanceof HermesPollTimeoutError);
+  assert.equal(error.timeoutMs, 5);
+});
+
+test("cancelled and interrupted Hermes runs still throw", async () => {
+  setupEnv();
+
+  for (const status of ["cancelled", "interrupted"]) {
+    globalThis.fetch = async (input, init) => {
+      if (init?.method === "POST") {
+        return jsonResponse(200, {
+          run_id: `hermes-run-${status}`,
+          status: "started",
+          replayed: false,
+        });
+      }
+
+      return jsonResponse(200, {
+        run_id: `hermes-run-${status}`,
+        status,
+      });
+    };
+
+    const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+
+    await assert.rejects(
+      () => runtime.execute(request()),
+      new RegExp(status),
+    );
+  }
 });

@@ -7,7 +7,7 @@ import { HermesClient, type HermesRunResponse } from "./client";
 
 export const HERMES_MODEL = "deepseek-v4-pro";
 export const DEFAULT_POLL_INTERVAL_MS = 1_000;
-export const DEFAULT_POLL_TIMEOUT_MS = 60_000;
+export const DEFAULT_POLL_TIMEOUT_MS = 180_000;
 
 const IN_PROGRESS_STATUSES = new Set(["started", "queued", "running"]);
 
@@ -15,6 +15,20 @@ export type HermesRuntimeOptions = {
   pollIntervalMs?: number;
   timeoutMs?: number;
 };
+
+export class HermesPollTimeoutError extends Error {
+  readonly kind = "hermes_poll_timeout";
+
+  constructor(
+    readonly runtimeRunId: string,
+    readonly timeoutMs: number,
+  ) {
+    super(
+      `Hermes run ${runtimeRunId} timed out after ${timeoutMs}ms. The remote run may still be active.`,
+    );
+    this.name = "HermesPollTimeoutError";
+  }
+}
 
 export class HermesRuntime implements AgentExecutionRuntime {
   constructor(private readonly options: HermesRuntimeOptions = {}) {}
@@ -26,7 +40,10 @@ export class HermesRuntime implements AgentExecutionRuntime {
     const client = new HermesClient(apiUrl, apiKey);
     const pollIntervalMs =
       this.options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
-    const timeoutMs = this.options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
+    const timeoutMs =
+      request.executionTimeoutMs ??
+      this.options.timeoutMs ??
+      DEFAULT_POLL_TIMEOUT_MS;
     const deadline = Date.now() + timeoutMs;
 
     const payload: Record<string, unknown> = {
@@ -47,6 +64,10 @@ export class HermesRuntime implements AgentExecutionRuntime {
 
     if (!runtimeRunId) {
       throw new Error("Hermes admission response is missing run_id.");
+    }
+
+    if (request.onRuntimeRunId) {
+      await request.onRuntimeRunId(runtimeRunId);
     }
 
     while (true) {
@@ -77,9 +98,7 @@ export class HermesRuntime implements AgentExecutionRuntime {
       }
 
       if (Date.now() >= deadline) {
-        throw new Error(
-          `Hermes run ${runtimeRunId} timed out after ${timeoutMs}ms.`,
-        );
+        throw new HermesPollTimeoutError(runtimeRunId, timeoutMs);
       }
 
       await sleep(pollIntervalMs);
