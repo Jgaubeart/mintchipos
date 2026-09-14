@@ -14,6 +14,12 @@ import type {
   ToolPermissionLevel,
   ToolRiskLevel,
 } from "@/lib/capabilities/constants";
+import type {
+  DiscoverySource,
+  ProspectStatus,
+  ScanStatus,
+  VisualAuditStatus,
+} from "@/lib/prospecting/constants";
 
 export type ProjectRow = {
   id: string;
@@ -185,6 +191,93 @@ export type Tool = ToolRow;
 export type AgentSkill = AgentSkillRow;
 export type AgentTool = AgentToolRow;
 
+export type ProspectScanRow = {
+  id: string;
+  location: string;
+  radius_km: number | null;
+  industries: string[];
+  categories: string[];
+  max_prospects: number;
+  exclusions: string[];
+  status: ScanStatus;
+  source_config: Record<string, unknown>;
+  discovered_count: number;
+  audited_count: number;
+  qualified_count: number;
+  disqualified_count: number;
+  error_count: number;
+  errors: string[];
+  created_by: string | null;
+  created_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+};
+
+export type ProspectRow = {
+  id: string;
+  business_name: string;
+  website_url: string | null;
+  domain: string | null;
+  industry: string | null;
+  industry_subtype: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  address: string | null;
+  phone: string | null;
+  public_email: string | null;
+  contact_page_url: string | null;
+  social_urls: string[];
+  discovery_source: DiscoverySource;
+  discovered_at: string | null;
+  scan_id: string | null;
+  source_url: string | null;
+  source_metadata: Record<string, unknown>;
+  duplicate_fingerprint: string;
+  appears_active: boolean | null;
+  local_business: boolean | null;
+  location_count: number | null;
+  review_presence: boolean | null;
+  review_count: number | null;
+  rating: number | null;
+  service_summary: string | null;
+  business_description: string | null;
+  confidence: number | null;
+  website_present: boolean;
+  website_reachable: boolean;
+  https_present: boolean;
+  mobile_responsive: boolean | null;
+  page_count_estimate: number;
+  broken_links: string[];
+  contact_cta_present: boolean;
+  phone_cta_present: boolean;
+  contact_form_present: boolean;
+  portfolio_present: boolean;
+  testimonials_present: boolean;
+  last_modified_at: string | null;
+  visual_audit_status: VisualAuditStatus;
+  audit_notes: string[];
+  audit_timestamp: string | null;
+  email_found: boolean;
+  email: string | null;
+  email_source_url: string | null;
+  phone_found: boolean;
+  contact_page_found: boolean;
+  contactability_confidence: number | null;
+  prospect_status: ProspectStatus;
+  qualification_score: number;
+  website_opportunity_score: number;
+  business_quality_score: number;
+  contactability_score: number;
+  disqualification_reasons: string[];
+  qualification_reasons: string[];
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type ProspectScan = ProspectScanRow;
+export type Prospect = ProspectRow;
+
 export type Database = {
   public: {
     Tables: {
@@ -258,6 +351,18 @@ export type Database = {
         Row: AgentToolRow;
         Insert: Partial<AgentToolRow>;
         Update: Partial<AgentToolRow>;
+        Relationships: [];
+      };
+      prospect_scans: {
+        Row: ProspectScanRow;
+        Insert: Partial<ProspectScanRow>;
+        Update: Partial<ProspectScanRow>;
+        Relationships: [];
+      };
+      prospects: {
+        Row: ProspectRow;
+        Insert: Partial<ProspectRow>;
+        Update: Partial<ProspectRow>;
         Relationships: [];
       };
     };
