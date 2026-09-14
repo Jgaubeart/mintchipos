@@ -12,6 +12,7 @@ export const ARTIFACT_TYPES = [
   "VISUAL_QA",
   "FUNCTIONAL_QA",
   "LAUNCH_INFO",
+  "DESIGN_DIRECTION_BRIEF",
 ] as const;
 
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
@@ -33,6 +34,7 @@ export const ARTIFACT_TYPE_OPTIONS: {
   { value: "VISUAL_QA", label: "Visual QA" },
   { value: "FUNCTIONAL_QA", label: "Functional QA" },
   { value: "LAUNCH_INFO", label: "Launch Information" },
+  { value: "DESIGN_DIRECTION_BRIEF", label: "Design Direction Brief" },
 ];
 
 export const ARTIFACT_STATUSES = [

@@ -65,6 +65,14 @@ export default async function ProjectDetailPage({
                   ? project.description
                   : "No description provided."}
               </p>
+              <div className="mt-4">
+                <Link
+                  href={`/projects/${project.slug}/design-brief`}
+                  className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+                >
+                  Design Direction Brief
+                </Link>
+              </div>
             </div>
 
             <dl className="grid gap-6 p-6 sm:grid-cols-2 sm:p-8">

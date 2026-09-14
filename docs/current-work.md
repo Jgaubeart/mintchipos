@@ -51,3 +51,48 @@ deliberately broken code remains.
 - No production deployment, remote migration, secret rotation, or billable
   resource creation without explicit approval.
 - Automatic repair is limited to three attempts for the same failure.
+
+## Milestone 1: Design Direction Brief v1
+
+Branch: `milestone-1-design-brief`.
+
+### Scope
+
+Add the first production workflow artifact `DESIGN_DIRECTION_BRIEF`: a
+structured, versioned brief describing what a website should look like, feel
+like, communicate, and accomplish.
+
+### Architecture decisions
+
+- Reuse the existing `artifacts` + `artifact_versions` model. The full brief is
+  stored in `artifact_versions.structured_data` (jsonb) and the deterministic
+  human summary in `content`.
+- `schemaVersion: 1` and `source` (`OWNER_MINT_CHIP` / `CUSTOMER` / `AGENT`)
+  are stored inside the brief for versioning and provenance.
+- Editing creates a new artifact version (never overwrites history).
+- Authenticity rules are immutable domain constants surfaced in the UI; they
+  are not user-disableable fields.
+
+### Acceptance criteria
+
+- Guided 10-step editor (Business → Goals → Brand → Visual Style → Colors &
+  Type → Inspiration → Assets → Content & Structure → Conversion → Review).
+- Local autosave draft + explicit save that creates a versioned artifact.
+- Deterministic review summary derived from structured values.
+- Schema/enum/range validation with tests.
+
+### Verification evidence
+
+`npm run verify` passes: lint, typecheck, 54/54 tests, production build.
+New routes build cleanly: `/projects/[slug]/design-brief` and
+`/projects/[slug]/design-brief/edit`.
+
+### Known limitations
+
+- Migration `20260913090000_design_direction_brief.sql` is created but not yet
+  applied to the live Supabase database (requires explicit approval).
+- The brief editor draft autosave is local-only (browser `localStorage`); it
+  is not a durable server draft.
+- No upload/storage system for reference images yet; inspiration stores URLs
+  and structured metadata so uploads can be added later.
+- No live website-generation run and no paid model calls were performed.
