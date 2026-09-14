@@ -181,3 +181,38 @@ Run `npm run verify`. See `docs/demo-staging.md`.
   to the live Supabase database (requires explicit approval).
 - No live Vercel verification was performed; Vercel CLI and credentials are
   not available in this environment.
+
+## Parallel Workstream P1: Autonomous Prospecting Foundation
+
+Branch: `workstream-prospecting-foundation` (based on `milestone-1-design-brief`
+at `d859884`). This runs in parallel with Milestone 2 and does not modify
+Milestone 2 files.
+
+### Scope
+
+Adds prospect discovery and qualification only: canonical prospect and scan
+models, a discovery-provider boundary, bounded website inspection, a
+deterministic V1 qualification rubric, duplicate prevention, contact-discovery
+safety, and an operational internal UI.
+
+### Key decisions
+
+- Dedicated `prospect_scans` and `prospects` tables; project artifacts are not
+  overloaded.
+- Fixture discovery provider is the default. No live provider is authorized
+  yet, and no live crawl or paid model call is performed.
+- Qualification is deterministic and stores reasons alongside scores.
+- Email discovery only surfaces already-public addresses and never guesses.
+
+### Evidence
+
+Run `npm run verify`. See `docs/prospecting-architecture.md`,
+`docs/prospecting-qualification-rubric.md`,
+`docs/prospecting-provider-interfaces.md`, and
+`docs/prospecting-integration-boundary.md`.
+
+### Known limitations
+
+- Migration `20260913110000_prospecting.sql` is created but not applied to the
+  live Supabase database (requires explicit approval).
+- The scan UI uses fixture data until a live provider is authorized.
