@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildProjectContext } from "../lib/execution/context";
 import { normalizeStructuredOutput } from "../lib/execution/output";
+import { buildStructuredOutputInstructions } from "../lib/execution/prompt";
 import {
   RESEARCH_ARTIFACT_TYPE,
   RESEARCH_STRATEGIST_KEY,
@@ -160,4 +161,31 @@ test("JSON text output normalizes and passes schema validation", () => {
   );
 
   assert.equal(validateAgentOutput(normalized, researchSchema).ok, true);
+});
+
+test("structured-output prompt includes the schema and required fields", () => {
+  const prompt = buildStructuredOutputInstructions(researchSchema);
+
+  assert.match(prompt, /OUTPUT REQUIREMENTS/);
+  assert.match(prompt, /Return ONLY valid JSON/);
+  assert.match(prompt, /Do not use markdown/);
+  assert.match(prompt, /executive_summary/);
+  assert.match(prompt, /business_context/);
+  assert.match(prompt, /research_questions/);
+  assert.match(prompt, /recommended_next_steps/);
+  assert.match(prompt, /Required top-level fields:/);
+});
+
+test("alternate-field research object fails schema validation", () => {
+  const alternate = {
+    project: { name: "Mint Chip Website" },
+    known_facts: ["The project is named Mint Chip Website."],
+    assumptions: [],
+    research_gaps: ["Missing positioning detail."],
+    downstream_guidance: { creative: "Focus on the brand." },
+    recommended_next_steps: ["Validate assumptions."],
+    confidence: "medium",
+  };
+
+  assert.equal(validateAgentOutput(alternate, researchSchema).ok, false);
 });

@@ -20,6 +20,7 @@
     "lib/execution/failure.ts",
     "lib/execution/input.ts",
     "lib/execution/output.ts",
+    "lib/execution/prompt.ts",
     "lib/execution/research.ts",
     "lib/execution/schema.ts",
     "lib/execution/validation.ts",

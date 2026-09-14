@@ -609,3 +609,74 @@ test("cancelled and interrupted Hermes runs still throw", async () => {
     );
   }
 });
+
+test("schema-constrained instructions include the output schema in the prompt", async () => {
+  setupEnv();
+  let payload: Record<string, unknown> | undefined;
+
+  globalThis.fetch = async (input, init) => {
+    if (init?.method === "POST") {
+      payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+      return jsonResponse(200, {
+        run_id: "hermes-run-schema-prompt",
+        status: "started",
+        replayed: false,
+      });
+    }
+
+    return jsonResponse(200, {
+      run_id: "hermes-run-schema-prompt",
+      status: "completed",
+      output: { executive_summary: "ok" },
+    });
+  };
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  await runtime.execute(
+    request({
+      outputSchema: {
+        type: "object",
+        required: ["executive_summary"],
+        properties: {
+          executive_summary: { type: "string" },
+        },
+      },
+    }),
+  );
+
+  assert.ok(payload);
+  const instructions = String(payload.instructions);
+
+  assert.match(instructions, /OUTPUT REQUIREMENTS/);
+  assert.match(instructions, /executive_summary/);
+  assert.match(instructions, /Return ONLY valid JSON/);
+});
+
+test("generic no-schema requests keep plain instructions", async () => {
+  setupEnv();
+  let payload: Record<string, unknown> | undefined;
+
+  globalThis.fetch = async (input, init) => {
+    if (init?.method === "POST") {
+      payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+      return jsonResponse(200, {
+        run_id: "hermes-run-plain",
+        status: "started",
+        replayed: false,
+      });
+    }
+
+    return jsonResponse(200, {
+      run_id: "hermes-run-plain",
+      status: "completed",
+      output: "ok",
+    });
+  };
+
+  const runtime = new HermesRuntime({ pollIntervalMs: 1, timeoutMs: 1000 });
+  await runtime.execute(request());
+
+  assert.ok(payload);
+  assert.equal(payload.instructions, "Bounded acknowledgement instructions.");
+  assert.doesNotMatch(String(payload.instructions), /OUTPUT REQUIREMENTS/);
+});

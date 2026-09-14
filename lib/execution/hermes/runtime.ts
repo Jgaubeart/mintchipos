@@ -3,6 +3,7 @@ import type {
   AgentExecutionResult,
   AgentExecutionRuntime,
 } from "../types";
+import { buildStructuredOutputInstructions } from "../prompt";
 import { HermesClient, type HermesRunResponse } from "./client";
 
 export const HERMES_MODEL = "deepseek-v4-pro";
@@ -48,7 +49,7 @@ export class HermesRuntime implements AgentExecutionRuntime {
 
     const payload: Record<string, unknown> = {
       model: HERMES_MODEL,
-      instructions: request.instructions,
+      instructions: this.buildInstructions(request),
       input: this.buildHermesInput(request),
       allowed_skills: [],
       allowed_tools: [],
@@ -103,6 +104,17 @@ export class HermesRuntime implements AgentExecutionRuntime {
 
       await sleep(pollIntervalMs);
     }
+  }
+
+  private buildInstructions(request: AgentExecutionRequest): string {
+    if (request.outputSchema == null) {
+      return request.instructions;
+    }
+
+    return [
+      request.instructions,
+      buildStructuredOutputInstructions(request.outputSchema),
+    ].join("\n\n");
   }
 
   private buildHermesInput(request: AgentExecutionRequest): unknown {
