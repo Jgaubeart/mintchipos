@@ -6,10 +6,18 @@ import {
 import { getProjectById } from "@/lib/projects/queries";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
+import { INDUSTRY_PLAYBOOK_ARTIFACT_TYPE } from "@/lib/playbooks/constants";
+import { industryPlaybookTitle } from "@/lib/playbooks/playbook";
 import { buildProjectContext } from "./context";
 import { toExecutionFailure } from "./failure";
 import { extractUserMessage } from "./input";
 import { normalizeStructuredOutput } from "./output";
+import {
+  buildPlaybookResearchMessage,
+  detectPlaybookResearchInput,
+  PLAYBOOK_RESEARCH_INSTRUCTIONS,
+  playbookOutputSchema,
+} from "./playbook";
 import {
   RESEARCH_ARTIFACT_TITLE,
   RESEARCH_ARTIFACT_TYPE,
@@ -41,8 +49,14 @@ export async function executeAgentRun(runId: string): Promise<void> {
     throw new Error("Run references missing project, agent, or version data.");
   }
 
-  const userMessage = extractUserMessage(run.input_snapshot);
-  const outputSchema = asOutputSchema(version.output_schema);
+  const playbookBrief = detectPlaybookResearchInput(run.input_snapshot);
+  const isPlaybookRun = playbookBrief !== null;
+  const userMessage = isPlaybookRun
+    ? buildPlaybookResearchMessage(playbookBrief)
+    : extractUserMessage(run.input_snapshot);
+  const outputSchema = isPlaybookRun
+    ? playbookOutputSchema()
+    : asOutputSchema(version.output_schema);
   const supabase = await createClient<Database>();
 
   const request: AgentExecutionRequest = {
@@ -51,7 +65,9 @@ export async function executeAgentRun(runId: string): Promise<void> {
     agentDefinitionId: agent.id,
     agentDefinitionVersionId: version.id,
     agentKey: agent.key,
-    instructions: version.instructions,
+    instructions: isPlaybookRun
+      ? PLAYBOOK_RESEARCH_INSTRUCTIONS
+      : version.instructions,
     input: userMessage,
     projectContext: buildProjectContext(project),
     outputSchema,
@@ -118,14 +134,23 @@ export async function executeAgentRun(runId: string): Promise<void> {
     throw new Error(validation.error);
   }
 
-  if (shouldPersistResearchArtifact(agent.key)) {
+  const artifactType = isPlaybookRun
+    ? INDUSTRY_PLAYBOOK_ARTIFACT_TYPE
+    : shouldPersistResearchArtifact(agent.key)
+      ? RESEARCH_ARTIFACT_TYPE
+      : null;
+  const artifactTitle = isPlaybookRun
+    ? industryPlaybookTitle(playbookBrief.industry.industryName)
+    : RESEARCH_ARTIFACT_TITLE;
+
+  if (artifactType) {
     const { error: persistError } = await supabase.rpc(
       "persist_agent_output_artifact",
       {
         p_project_id: project.id,
         p_agent_run_id: run.id,
-        p_artifact_type: RESEARCH_ARTIFACT_TYPE,
-        p_title: RESEARCH_ARTIFACT_TITLE,
+        p_artifact_type: artifactType,
+        p_title: artifactTitle,
         p_content: JSON.stringify(normalizedOutput, null, 2) ?? "",
         p_structured_data: normalizedOutput,
       },

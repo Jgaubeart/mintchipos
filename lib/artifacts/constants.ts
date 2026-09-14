@@ -13,6 +13,8 @@ export const ARTIFACT_TYPES = [
   "FUNCTIONAL_QA",
   "LAUNCH_INFO",
   "DESIGN_DIRECTION_BRIEF",
+  "PLAYBOOK_BRIEF",
+  "INDUSTRY_PLAYBOOK",
 ] as const;
 
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
@@ -35,6 +37,8 @@ export const ARTIFACT_TYPE_OPTIONS: {
   { value: "FUNCTIONAL_QA", label: "Functional QA" },
   { value: "LAUNCH_INFO", label: "Launch Information" },
   { value: "DESIGN_DIRECTION_BRIEF", label: "Design Direction Brief" },
+  { value: "PLAYBOOK_BRIEF", label: "Playbook Brief" },
+  { value: "INDUSTRY_PLAYBOOK", label: "Industry Playbook" },
 ];
 
 export const ARTIFACT_STATUSES = [

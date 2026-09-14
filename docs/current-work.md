@@ -106,3 +106,47 @@ New routes build cleanly: `/projects/[slug]/design-brief` and
 - Schema keeps `schemaVersion: 1` (additive change); missing `siteFormat` is
   normalized to the default ONE_PAGE on load for backward compatibility.
 - No database migration required (stored in `structured_data` jsonb).
+
+## Milestone 2: Playbook Brief + Industry Playbook Generator
+
+Branch: `milestone-2-playbooks`.
+
+### Scope
+
+Define, research, generate, and version reusable industry website playbooks
+via the existing Research Strategist + artifact architecture. No website
+generation yet.
+
+### Architecture decisions
+
+- `PLAYBOOK_BRIEF` and `INDUSTRY_PLAYBOOK` are versioned artifacts
+  (`artifacts` + `artifact_versions`), stored as `structured_data` jsonb.
+- The brief is a compact research spec (industry, target market, research
+  scope, research questions, evidence requirements).
+- The playbook uses a canonical 28-section structured schema plus
+  `schemaVersion` and `industryName`.
+- Playbook research runs are detected from `agent_runs.input_snapshot` with
+  `kind: "PLAYBOOK_RESEARCH"`; the execution orchestrator switches to the
+  `INDUSTRY_PLAYBOOK` output schema and persists `INDUSTRY_PLAYBOOK` on
+  success.
+- Lineage: `PLAYBOOK_BRIEF` (input snapshot) → agent run → `INDUSTRY_PLAYBOOK`
+  artifact version (output).
+
+### Acceptance criteria
+
+- Create/edit a Playbook Brief; run Research Strategist; validate against the
+  canonical playbook schema; persist a versioned `INDUSTRY_PLAYBOOK`; show
+  sources and version history; no arbitrary field renaming.
+
+### Verification evidence
+
+`npm run verify` passes: lint, typecheck, 70/70 tests, production build.
+Routes `/playbooks`, `/playbooks/new`, `/playbooks/[id]` build cleanly.
+
+### Known limitations
+
+- Migration `20260913100000_playbooks.sql` is created but not yet applied to
+  the live Supabase database (requires explicit approval).
+- The Playbook Brief UI is intentionally minimal; editing re-runs the brief as
+  a new artifact version.
+- No paid model research was executed during implementation.
