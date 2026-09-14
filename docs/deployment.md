@@ -6,22 +6,36 @@
 - Railway: Hermes execution runtime (async `/v1/runs`).
 - Supabase: durable database (see `docs/supabase-migrations.md`).
 
-## Current local access status
+## Local CLIs and authentication
 
-- Git over HTTPS to `github.com/Jgaubeart/mintchipos` works.
-- `gh` CLI has an invalid token; re-authenticate with `gh auth login -h github.com`.
-- Railway CLI is not installed and no `RAILWAY_TOKEN` is present.
-- Vercel CLI is not installed and no `VERCEL_TOKEN` is present.
+Verified on Windows:
 
-To read Railway/Vercel logs directly, install the CLIs and authenticate:
+- `gh` 2.100.0 is installed; re-authenticate with `gh auth login -h github.com -p https -w`
+  (device-code flow).
+- Install Railway and Vercel CLIs with `npm install -g @railway/cli vercel`.
+- `railway login --browserless` prints a one-time device code.
+- `vercel login` opens a browser/device flow.
+
+Read-only verification commands:
 
 ```bash
-npm i -g @railway/cli && railway login
-npm i -g vercel && vercel login
+gh auth status
+gh repo view Jgaubeart/mintchipos
+
+railway whoami
+railway status
+railway service list
+railway logs --limit 20
+
+vercel whoami
+vercel projects ls
+vercel ls mintchipos
+vercel inspect os.mintchipweb.com
+vercel logs --project mintchipos --limit 20
 ```
 
-Prefer the hosted MCP/CLI integrations documented by Railway and Vercel over
-guessing UI settings. One-time interactive login remains a human step.
+Never store tokens in this file. One-time interactive login remains a human
+step; a coding agent can initiate it but cannot approve it.
 
 ## Hermes runtime configuration
 
