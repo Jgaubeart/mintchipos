@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsc -p tsconfig.test.json && node --test \"out/test/tests/*.test.js\""
+    "typecheck": "tsc --noEmit --incremental false",
+    "test": "tsc -p tsconfig.test.json && node --test \"out/test/tests/*.test.js\"",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
