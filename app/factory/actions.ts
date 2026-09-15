@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/require-user";
+import { VercelDemoDeploymentProvider } from "@/lib/demo-staging/vercel";
 import { getProjectBySlug } from "@/lib/projects/queries";
 import {
   persistFactoryPreviewDeployment,
@@ -9,6 +10,7 @@ import {
 } from "@/lib/website-factory/queries";
 import { getWebsiteFactoryAgentRuntime } from "@/lib/website-factory/agents";
 import { runWebsiteFactoryPipeline } from "@/lib/website-factory/pipeline";
+import { SupabasePlaybookProvider } from "@/lib/website-factory/playbook-live";
 import { HttpResearchProvider } from "@/lib/website-factory/research";
 import type { GenerateDemoFormState } from "./types";
 
@@ -66,7 +68,9 @@ export async function generateDemo(
       },
       {
         researchProvider: new HttpResearchProvider(),
+        playbookProvider: new SupabasePlaybookProvider(project.id),
         agentRuntime: getWebsiteFactoryAgentRuntime(),
+        deploymentProvider: new VercelDemoDeploymentProvider(),
       },
     );
 
