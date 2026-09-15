@@ -9,6 +9,7 @@ import {
 import { criticalAgentKey } from "./agent-schemas";
 import { classifyIndustry } from "./classify";
 import { buildAutoDesignBrief } from "./brief";
+import { buildFrontendBuildSpec } from "./build-spec";
 import { DeterministicFrontendBuilder } from "./builder";
 import { FixturePlaybookProvider } from "./playbook";
 import { runFunctionalQa, runVisualQa } from "./qa";
@@ -150,7 +151,10 @@ export async function runWebsiteFactoryPipeline(
     run.businessName = run.businessName ?? research.businessName;
     completeStage("BUSINESS_RESEARCH", research, "BUSINESS_RESEARCH");
 
-    const classification = classifyIndustry(research);
+    const classification = classifyIndustry(
+      research,
+      input.existingBrief?.project.industry ?? null,
+    );
     completeStage(
       "INDUSTRY_CLASSIFICATION",
       classification,
@@ -279,21 +283,21 @@ export async function runWebsiteFactoryPipeline(
     });
     completeStage("ASSET_PLAN", assetPlan, "ASSET_PLAN");
 
+    const frontendSpec = buildFrontendBuildSpec({
+      brief: briefResult.brief,
+      research,
+      strategy: uxContent,
+      creative,
+      assets: assetPlan,
+    });
+
     let build: FrontendBuildResult;
     if (agentRuntime) {
       const runtimeOutput = await agentRuntime.executeStage({
         stage: "FRONTEND_BUILD",
         agentKey: criticalAgentKey("FRONTEND_BUILD") ?? "FRONTEND_BUILDER",
         projectId: input.projectId,
-        stageInput: {
-          businessResearch: research,
-          industryPlaybook: playbookSelection.playbook,
-          designBrief: briefResult.brief,
-          uxContentStrategy: uxContent,
-          creativeDirection: creative,
-          assetAudit,
-          assetPlan,
-        },
+        stageInput: frontendSpec,
       });
       build = runtimeOutput.output as FrontendBuildResult;
     } else {
@@ -338,16 +342,7 @@ export async function runWebsiteFactoryPipeline(
               stage: "FRONTEND_BUILD",
               agentKey: criticalAgentKey("FRONTEND_BUILD") ?? "FRONTEND_BUILDER",
               projectId: input.projectId,
-              stageInput: {
-                businessResearch: research,
-                industryPlaybook: playbookSelection.playbook,
-                designBrief: briefResult.brief,
-                uxContentStrategy: uxContent,
-                creativeDirection: creative,
-                assetAudit,
-                assetPlan,
-                defects,
-              },
+              stageInput: { ...frontendSpec, defects },
             })
           ).output as FrontendBuildResult
         : await frontendBuilder.build({

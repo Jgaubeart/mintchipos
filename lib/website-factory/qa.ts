@@ -14,7 +14,7 @@ export function runFunctionalQa(
     },
     {
       name: "viewport",
-      passed: /name="viewport"/i.test(html),
+      passed: /name=["']viewport["']/i.test(html),
       detail: "Mobile viewport is present.",
     },
     {
@@ -24,7 +24,9 @@ export function runFunctionalQa(
     },
     {
       name: "contact-cta",
-      passed: /id="contact"/.test(html) && /class="cta"/.test(html),
+      passed:
+        /id=["']contact["']/i.test(html) &&
+        /class=["'][^"']*cta/i.test(html),
       detail: "Contact section and call to action are present.",
     },
     {
@@ -73,4 +75,3 @@ export function runVisualQa(
 
   return { passed: defects.length === 0, checks, defects };
 }
-

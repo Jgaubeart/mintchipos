@@ -69,3 +69,23 @@ Hermes stages that completed:
 No estimated cost was returned by Hermes for those runs.
 
 Preview deployment is blocked by missing Vercel preview credentials.
+
+## Frontend Builder timeout repair
+
+Root cause: the Frontend Builder was being asked to return the complete
+website HTML in one long Hermes response while the local poller treated a
+single poll window as terminal. Both timed-out runs were later found
+`completed` remotely.
+
+Changes:
+
+- Added a compact `FrontendBuildSpec` so the builder receives resolved inputs
+  instead of full research/playbook transcripts.
+- Added a `BuildManifest` contract that omits full HTML from the final
+  builder result.
+- Added remote-run recovery/polling helpers that avoid duplicate paid runs.
+- Added deterministic `ensureBuildableHtml` for missing viewport/contact CTA.
+- Fixed industry classification to use the known project industry and avoid
+  `confidence = 0`.
+
+Recovered frontend build ID: `mintchipweb-one-page-20260915`.

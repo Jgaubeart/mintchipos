@@ -104,3 +104,32 @@ export class DeterministicFrontendBuilder implements FrontendBuilder {
     };
   }
 }
+
+export function ensureBuildableHtml(input: {
+  html: string;
+  businessName?: string;
+  cta?: string;
+}): string {
+  let html = input.html;
+  const businessName = input.businessName ?? "Mint Chip";
+  const cta = input.cta ?? "Get a free website";
+
+  if (!/<meta\b[^>]+name=["']viewport["']/i.test(html)) {
+    const viewport = '<meta name="viewport" content="width=device-width, initial-scale=1" />';
+    if (/<head\b[^>]*>/i.test(html)) {
+      html = html.replace(/(<head\b[^>]*>)/i, `$1\n  ${viewport}`);
+    } else {
+      html = `<!doctype html><html><head>${viewport}</head><body>${html}</body></html>`;
+    }
+  }
+
+  if (!/id=["']contact["']/i.test(html) || !/class=["'][^"']*cta/i.test(html)) {
+    const contact = `<section id="contact"><h2>Contact ${businessName}</h2><a class="cta" href="#contact">${cta}</a></section>`;
+    html = html.replace(/<\/body>/i, `${contact}\n</body>`);
+    if (!/<\/body>/i.test(html)) {
+      html = `${html}\n${contact}`;
+    }
+  }
+
+  return html;
+}

@@ -5,11 +5,17 @@ import type {
 
 const INDUSTRY_KEYWORDS: Record<string, string[]> = {
   "AI Website Design": [
+    "mint chip",
+    "website generation",
+    "website service",
+    "managed website service",
     "ai website",
     "website design",
     "managed website",
     "web design",
     "website service",
+    "modern websites",
+    "websites",
   ],
   Roofing: ["roof", "roofing", "shingle", "gutter"],
   Landscaping: ["landscap", "lawn", "sod", "irrigation"],
@@ -27,7 +33,19 @@ function normalize(value: string): string {
 
 export function classifyIndustry(
   research: BusinessResearch,
+  knownIndustry?: string | null,
 ): IndustryClassification {
+  if (knownIndustry?.trim()) {
+    return {
+      primaryIndustry: knownIndustry.trim(),
+      subtype: "",
+      confidence: 1,
+      alternateIndustry: null,
+      exception: null,
+      matchedKeywords: ["known-project-industry"],
+    };
+  }
+
   const corpus = normalize(
     [
       research.businessName,
@@ -75,4 +93,3 @@ export function classifyIndustry(
     matchedKeywords,
   };
 }
-
