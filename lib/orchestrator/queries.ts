@@ -134,6 +134,7 @@ export async function createOrchestratorTask(input: {
   projectId?: string | null;
   factoryRunId?: string | null;
   deploymentId?: string | null;
+  engineeringTaskId?: string | null;
   error?: Record<string, unknown> | null;
 }): Promise<OrchestratorTask> {
   const supabase = await createClient<Database>();
@@ -147,6 +148,7 @@ export async function createOrchestratorTask(input: {
       project_id: input.projectId ?? null,
       factory_run_id: input.factoryRunId ?? null,
       deployment_id: input.deploymentId ?? null,
+      engineering_task_id: input.engineeringTaskId ?? null,
       error: input.error ?? null,
     })
     .select()
@@ -206,4 +208,3 @@ export async function getLatestFactoryRun(): Promise<WebsiteFactoryRun | null> {
 
   return data;
 }
-

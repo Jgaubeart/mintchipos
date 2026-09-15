@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { detectIntent, intentTitle } from "./intents";
 import {
   createOrchestratorMessage,
@@ -10,6 +11,204 @@ import {
 } from "./queries";
 import { resolveProductionReadiness } from "./readiness";
 import type { OrchestratorReply } from "./types";
+import type { OrchestratorTaskStatus } from "./constants";
+import {
+  createEngineeringTask,
+  createEngineeringTaskEvent,
+  getEngineeringTaskById,
+  getEngineeringTaskByIdempotencyKey,
+  updateEngineeringTask,
+} from "@/lib/engineering-operator/queries";
+import {
+  classifyEngineeringRisk,
+  resolveEngineeringApproval,
+} from "@/lib/engineering-operator/risk";
+import {
+  engineeringIntentTitle,
+  suggestEngineeringBranch,
+} from "@/lib/engineering-operator/intents";
+import { buildEngineeringTaskEnvelope } from "@/lib/engineering-operator/envelope";
+import {
+  executeEngineeringTask,
+  engineeringExecutionIdempotencyKey,
+} from "@/lib/engineering-operator/executor";
+import { defaultEngineeringRuntime } from "@/lib/engineering-operator/runtime";
+import { ENGINEERING_INTENTS } from "@/lib/engineering-operator/constants";
+import type { EngineeringTask } from "@/lib/supabase/database.types";
+import type {
+  EngineeringIntent,
+  EngineeringTaskStatus,
+} from "@/lib/engineering-operator/constants";
+
+function engineeringReplyFromTask(
+  task: EngineeringTask,
+): OrchestratorReply {
+  return {
+    content:
+      task.status === "WAITING_FOR_APPROVAL"
+        ? "Engineering task created and paused at the approval gate."
+        : "Engineering task created.",
+    intent: task.intent,
+    task: {
+      title: task.title,
+      status: mapEngineeringStatus(task.status),
+      engineeringTaskId: task.id,
+      workingBranch: task.working_branch,
+      commitSha: task.commit_sha,
+      progress: task.progress_stage,
+      tests: task.tests_summary,
+      riskLevel: task.risk_level,
+      approvalState: task.approval_state,
+      blocker: task.blocker,
+    },
+  };
+}
+
+function mapEngineeringStatus(
+  status: EngineeringTaskStatus,
+): OrchestratorTaskStatus {
+  switch (status) {
+    case "SUCCEEDED":
+      return "SUCCEEDED";
+    case "FAILED":
+      return "FAILED";
+    case "CANCELLED":
+      return "CANCELLED";
+    case "WAITING_FOR_APPROVAL":
+      return "WAITING_FOR_APPROVAL";
+    default:
+      return "RUNNING";
+  }
+}
+
+async function executeQueuedEngineeringTask(taskId: string): Promise<void> {
+  try {
+    const task = await getEngineeringTaskById(taskId);
+    if (!task) {
+      return;
+    }
+
+    const envelope = buildEngineeringTaskEnvelope({ task });
+    await executeEngineeringTask({
+      task,
+      envelope,
+      runtime: defaultEngineeringRuntime,
+      callbacks: {
+        addEvent: async (event) => {
+          await createEngineeringTaskEvent({
+            taskId: event.taskId,
+            type: event.type,
+            summary: event.summary,
+            metadata: event.metadata,
+          });
+        },
+        updateTask: async (update) => {
+          await updateEngineeringTask({
+            taskId: update.taskId,
+            status: update.status,
+            workingBranch: update.workingBranch,
+            commitSha: update.commitSha,
+            testsSummary: update.testsSummary,
+            previewDeploymentId: update.previewDeploymentId,
+            verificationStatus: update.verificationStatus,
+            blocker: update.blocker,
+            progressStage:
+              (update.progressStage as
+                | "Planning"
+                | "Coding"
+                | "Testing"
+                | "Deploying Preview"
+                | "Complete"
+                | null) ?? null,
+            startedAt: update.startedAt,
+            completedAt: update.completedAt,
+          });
+        },
+      },
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Engineering execution failed.";
+    await updateEngineeringTask({
+      taskId,
+      status: "BLOCKED",
+      blocker: message,
+    });
+    await createEngineeringTaskEvent({
+      taskId,
+      type: "BLOCKED",
+      summary: message,
+    });
+  }
+}
+
+async function handleEngineeringRequest(input: {
+  userId: string;
+  content: string;
+  threadId: string;
+  orchestratorMessageId: string | null;
+}): Promise<OrchestratorReply> {
+  const detection = detectIntent(input.content);
+  if (!(ENGINEERING_INTENTS as readonly string[]).includes(detection.intent)) {
+    throw new Error("Engineering request expected.");
+  }
+  const intent = detection.intent as EngineeringIntent;
+  const riskLevel = classifyEngineeringRisk(intent, input.content);
+  const approval = resolveEngineeringApproval({
+    intent,
+    text: input.content,
+    riskLevel,
+  });
+  const idempotencyKey = engineeringExecutionIdempotencyKey({
+    ownerId: input.userId,
+    content: input.content,
+  });
+
+  const existing = await getEngineeringTaskByIdempotencyKey({
+    ownerId: input.userId,
+    idempotencyKey,
+  });
+
+  let task: EngineeringTask;
+  if (existing) {
+    task = existing;
+  } else {
+    task = await createEngineeringTask({
+      ownerId: input.userId,
+      idempotencyKey,
+      title: engineeringIntentTitle(intent, input.content),
+      description: input.content,
+      intent,
+      category: intent.replace(/^ENGINEERING_/, ""),
+      priority:
+        approval.riskLevel === "CRITICAL"
+          ? 1
+          : approval.riskLevel === "HIGH"
+            ? 2
+            : 3,
+      status: approval.canStartImmediately
+        ? "QUEUED"
+        : "WAITING_FOR_APPROVAL",
+      riskLevel: approval.riskLevel,
+      approvalState: approval.approvalState,
+      workingBranch: suggestEngineeringBranch(intent, input.content),
+      orchestratorThreadId: input.threadId,
+      orchestratorMessageId: input.orchestratorMessageId,
+    });
+
+    await createEngineeringTaskEvent({
+      taskId: task.id,
+      type: "TASK_CREATED",
+      summary: "Engineering task created from Orchestrator chat.",
+    });
+  }
+
+  if (approval.canStartImmediately) {
+    after(() => executeQueuedEngineeringTask(task.id));
+  }
+
+  return engineeringReplyFromTask(task);
+}
 
 export async function runOrchestratorMessage(input: {
   userId: string;
@@ -39,6 +238,14 @@ export async function runOrchestratorMessage(input: {
 
   let reply: OrchestratorReply;
 
+  if ((ENGINEERING_INTENTS as readonly string[]).includes(detection.intent)) {
+    reply = await handleEngineeringRequest({
+      userId: input.userId,
+      content: input.content,
+      threadId: activeThread.id,
+      orchestratorMessageId: null,
+    });
+  } else {
   switch (detection.intent) {
     case "SHOW_PREVIEW": {
       const run = await getLatestFactoryRunWithPreview();
@@ -174,6 +381,7 @@ export async function runOrchestratorMessage(input: {
       };
       break;
   }
+  }
 
   const orchestratorMessage = await createOrchestratorMessage({
     threadId: activeThread.id,
@@ -193,6 +401,7 @@ export async function runOrchestratorMessage(input: {
       status: reply.task.status,
       factoryRunId: reply.task.factoryRunId ?? null,
       deploymentId: null,
+      engineeringTaskId: reply.task.engineeringTaskId ?? null,
     });
   }
 

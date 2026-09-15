@@ -240,6 +240,43 @@ production deployment, or paid model calls.
 
 Run `npm run verify`. See `docs/website-factory-status.md`.
 
+## Milestone 5: Engineering Operator
+
+Branch: `milestone-5-engineering-operator`.
+
+### Scope
+
+Add a controlled Engineering Operator capability behind the Orchestrator so
+the owner can ask MintChipOS to continue building, fixing, testing, and
+preview-deploying MintChipOS itself through `/orchestrator`.
+
+### Key changes
+
+- `ENGINEERING_OPERATOR` is a canonical agent definition.
+- `engineering_tasks`, `engineering_task_events`, and
+  `engineering_task_artifacts` persist bounded engineering work with RLS.
+- Deterministic engineering intents include fix, build, continue, run tests,
+  inspect failure, deploy preview, and show status.
+- Risk and approval policy distinguishes low/medium/high/critical work.
+- The Orchestrator delegates engineering intents to the Engineering Operator
+  and renders engineering task cards.
+- A deterministic continuation planner reads canonical work order, known
+  issues, Website Factory status, and open tasks.
+
+### Verification evidence
+
+`npm run verify` passes: lint, typecheck, 129/129 tests, and production build.
+
+### Known limitations
+
+- Migration `20260914000000_engineering_operator.sql` is created but not yet
+  applied to the live Supabase database (requires explicit approval).
+- Code-mutating execution requires an authorized runtime and has not been
+  live-run. Local runtime handles docs/status and optional deterministic
+  `npm run verify`, but does not mutate repository code without authorization.
+
+See `docs/engineering-operator-status.md`.
+
 ### Known limitations
 
 - Migration `20260913130000_website_factory_runs.sql` is created but not

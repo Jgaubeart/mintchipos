@@ -35,6 +35,14 @@ import type {
   OrchestratorMessageRole,
   OrchestratorTaskStatus,
 } from "@/lib/orchestrator/constants";
+import type {
+  EngineeringApprovalState,
+  EngineeringIntent,
+  EngineeringProgressStage,
+  EngineeringRiskLevel,
+  EngineeringTaskEventType,
+  EngineeringTaskStatus,
+} from "@/lib/engineering-operator/constants";
 
 export type ProjectRow = {
   id: string;
@@ -281,6 +289,7 @@ export type OrchestratorTaskRow = {
   project_id: string | null;
   factory_run_id: string | null;
   deployment_id: string | null;
+  engineering_task_id: string | null;
   error: Record<string, unknown> | null;
   created_at: string | null;
   updated_at: string | null;
@@ -290,6 +299,62 @@ export type OrchestratorTaskRow = {
 export type OrchestratorThread = OrchestratorThreadRow;
 export type OrchestratorMessage = OrchestratorMessageRow;
 export type OrchestratorTask = OrchestratorTaskRow;
+
+export type EngineeringTaskRow = {
+  id: string;
+  owner_id: string;
+  orchestrator_thread_id: string | null;
+  orchestrator_message_id: string | null;
+  idempotency_key: string | null;
+  title: string;
+  description: string | null;
+  intent: EngineeringIntent;
+  category: string | null;
+  priority: number;
+  status: EngineeringTaskStatus;
+  risk_level: EngineeringRiskLevel;
+  repository: string;
+  base_branch: string;
+  working_branch: string | null;
+  target_environment: string;
+  approval_state: EngineeringApprovalState;
+  execution_runtime: string | null;
+  external_run_id: string | null;
+  commit_sha: string | null;
+  migration_references: string[];
+  preview_deployment_id: string | null;
+  verification_status: string | null;
+  blocker: string | null;
+  progress_stage: EngineeringProgressStage | null;
+  tests_summary: string | null;
+  created_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  updated_at: string | null;
+};
+
+export type EngineeringTaskEventRow = {
+  id: string;
+  task_id: string;
+  type: EngineeringTaskEventType;
+  summary: string;
+  metadata: Record<string, unknown>;
+  attempt: number;
+  created_at: string | null;
+};
+
+export type EngineeringTaskArtifactRow = {
+  id: string;
+  task_id: string;
+  kind: string;
+  reference: string;
+  metadata: Record<string, unknown>;
+  created_at: string | null;
+};
+
+export type EngineeringTask = EngineeringTaskRow;
+export type EngineeringTaskEvent = EngineeringTaskEventRow;
+export type EngineeringTaskArtifact = EngineeringTaskArtifactRow;
 
 export type ProspectScanRow = {
   id: string;
@@ -481,6 +546,24 @@ export type Database = {
         Row: OrchestratorTaskRow;
         Insert: Partial<OrchestratorTaskRow>;
         Update: Partial<OrchestratorTaskRow>;
+        Relationships: [];
+      };
+      engineering_tasks: {
+        Row: EngineeringTaskRow;
+        Insert: Partial<EngineeringTaskRow>;
+        Update: Partial<EngineeringTaskRow>;
+        Relationships: [];
+      };
+      engineering_task_events: {
+        Row: EngineeringTaskEventRow;
+        Insert: Partial<EngineeringTaskEventRow>;
+        Update: Partial<EngineeringTaskEventRow>;
+        Relationships: [];
+      };
+      engineering_task_artifacts: {
+        Row: EngineeringTaskArtifactRow;
+        Insert: Partial<EngineeringTaskArtifactRow>;
+        Update: Partial<EngineeringTaskArtifactRow>;
         Relationships: [];
       };
       prospect_scans: {

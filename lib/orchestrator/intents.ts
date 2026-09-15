@@ -1,5 +1,9 @@
 import type { OrchestratorIntent } from "./constants";
 import type { IntentDetection } from "./types";
+import {
+  detectEngineeringIntent,
+  engineeringIntentTitle,
+} from "../engineering-operator/intents";
 
 const URL_PATTERN =
   /\bhttps?:\/\/[^\s"'<>()]+/i;
@@ -10,6 +14,15 @@ function containsUrl(text: string): string | null {
 
 export function detectIntent(text: string): IntentDetection {
   const normalized = text.trim();
+  const engineering = detectEngineeringIntent(normalized);
+  if (engineering.intent) {
+    return {
+      intent: engineering.intent,
+      url: null,
+      confidence: engineering.confidence,
+    };
+  }
+
   const url = containsUrl(normalized);
 
   if (url && /build|create|generate|demo/i.test(normalized)) {
@@ -81,6 +94,18 @@ export function intentTitle(
 
   if (intent === "CHECK_FACTORY_RUN") {
     return "Check factory run";
+  }
+
+  if (
+    intent === "ENGINEERING_FIX_BUG" ||
+    intent === "ENGINEERING_BUILD_FEATURE" ||
+    intent === "ENGINEERING_CONTINUE_PROJECT" ||
+    intent === "ENGINEERING_RUN_TESTS" ||
+    intent === "ENGINEERING_INSPECT_FAILURE" ||
+    intent === "ENGINEERING_DEPLOY_PREVIEW" ||
+    intent === "ENGINEERING_SHOW_STATUS"
+  ) {
+    return engineeringIntentTitle(intent, "");
   }
 
   return "Operator query";

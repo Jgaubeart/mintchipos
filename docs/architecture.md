@@ -11,6 +11,9 @@
 
 - MintChipOS is the authoritative control plane: projects, immutable artifact
   versions, agent definitions/versions/runs, approvals, and lineage.
+- The Orchestrator remains the control plane; the Engineering Operator is a
+  specialized worker that receives a controlled task envelope and never becomes
+  a second independent control plane.
 - Hermes/DeepSeek is only an execution runtime. A completed Hermes run is
   execution evidence, not permission to approve, overwrite, or deploy.
 - Supabase is the durable system of record. Runtime state (e.g. the Hermes
@@ -27,12 +30,15 @@
   - `execute.ts` — orchestration: load run, execute, normalize, validate, persist
   - `types.ts`, `prompt.ts`, `output.ts`, `schema.ts`, `validation.ts`, `failure.ts`
 - `lib/projects/`, `lib/artifacts/`, `lib/agents/`, `lib/capabilities/` — domain queries/formatting
+- `lib/engineering-operator/` — bounded engineering task intents, risk/approval
+  policy, continuation planning, execution contract, and local runtime
 
 ## Domain tables
 
 - `projects`, `artifacts`, `artifact_versions`
 - `agent_definitions`, `agent_definition_versions`, `agent_runs`, `agent_run_artifacts`
 - `skills`, `skill_versions`, `tools`, `agent_skills`, `agent_tools`
+- `engineering_tasks`, `engineering_task_events`, `engineering_task_artifacts`
 
 ## Execution flow
 

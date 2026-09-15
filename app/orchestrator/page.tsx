@@ -10,6 +10,7 @@ import {
   getOrchestratorTasks,
   getOrchestratorThreads,
 } from "@/lib/orchestrator/queries";
+import { getEngineeringTasksForThread } from "@/lib/engineering-operator/queries";
 import { sendOrchestratorMessage } from "./actions";
 
 export const metadata: Metadata = {
@@ -33,6 +34,12 @@ export default async function OrchestratorPage({
   const tasks = activeThreadId
     ? await getOrchestratorTasks(activeThreadId)
     : [];
+  const engineeringTasks = activeThreadId
+    ? await getEngineeringTasksForThread(activeThreadId)
+    : [];
+  const conversationTasks = tasks.filter(
+    (task) => !task.engineering_task_id,
+  );
 
   return (
     <>
@@ -133,9 +140,9 @@ export default async function OrchestratorPage({
                 ))
               )}
 
-              {tasks.length > 0 ? (
+              {conversationTasks.length > 0 ? (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {tasks.map((task) => (
+                  {conversationTasks.map((task) => (
                     <div
                       key={task.id}
                       className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
@@ -151,6 +158,72 @@ export default async function OrchestratorPage({
                       {task.factory_run_id ? (
                         <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                           Run: {task.factory_run_id}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {engineeringTasks.length > 0 ? (
+                <div className="grid gap-3">
+                  {engineeringTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            {task.title}
+                          </p>
+                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            {task.intent.replace(/^ENGINEERING_/, "").replace(/_/g, " ")}{" "}
+                            · {task.risk_level} risk
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-md px-2 py-1 text-xs font-medium ${
+                            task.status === "SUCCEEDED"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                              : task.status === "BLOCKED" ||
+                                  task.status === "FAILED" ||
+                                  task.status === "WAITING_FOR_APPROVAL"
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                : "bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
+                          }`}
+                        >
+                          {task.status}
+                        </span>
+                      </div>
+
+                      {task.working_branch ? (
+                        <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-300">
+                          Branch: {task.working_branch}
+                        </p>
+                      ) : null}
+
+                      {task.progress_stage ? (
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          Progress: {task.progress_stage}
+                        </p>
+                      ) : null}
+
+                      {task.commit_sha ? (
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          Commit: {task.commit_sha}
+                        </p>
+                      ) : null}
+
+                      {task.tests_summary ? (
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          Tests: {task.tests_summary}
+                        </p>
+                      ) : null}
+
+                      {task.blocker ? (
+                        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                          {task.blocker}
                         </p>
                       ) : null}
                     </div>

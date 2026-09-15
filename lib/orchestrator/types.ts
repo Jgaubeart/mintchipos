@@ -23,6 +23,14 @@ export type OrchestratorReply = {
     status: OrchestratorTaskStatus;
     previewUrl?: string | null;
     factoryRunId?: string | null;
+    engineeringTaskId?: string | null;
+    workingBranch?: string | null;
+    commitSha?: string | null;
+    progress?: string | null;
+    tests?: string | null;
+    riskLevel?: string | null;
+    approvalState?: string | null;
+    blocker?: string | null;
     error?: string | null;
   } | null;
 };
