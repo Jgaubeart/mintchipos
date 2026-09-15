@@ -223,6 +223,7 @@ Return only valid JSON with these top-level fields:
 - previewUrl: string or null
 - blocker: string or null
 - summary: concise human-readable result$instr$,
+    null,
     $schema${
       "type": "object",
       "required": ["status", "workingBranch", "commitSha", "testsSummary", "previewUrl", "blocker", "summary"],
