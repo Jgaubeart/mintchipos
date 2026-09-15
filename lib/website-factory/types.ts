@@ -156,7 +156,29 @@ export type FunctionalQaReport = {
   defects: string[];
 };
 
+export type VisualQaStatus =
+  | "PASSED"
+  | "PASSED_WITH_DEMO_LIMITATIONS"
+  | "FAILED";
+
+export type DemoLimitation =
+  | "MISSING_REAL_PHONE"
+  | "MISSING_REAL_EMAIL"
+  | "FORM_NOT_CONNECTED"
+  | "PLACEHOLDER_REVIEWS"
+  | "PLACEHOLDER_PORTFOLIO"
+  | "PLACEHOLDER_IMAGES"
+  | "MISSING_CUSTOMER_ASSETS"
+  | "MISSING_PRODUCTION_INTEGRATION"
+  | "OTHER_DISCLOSED_DEMO_LIMITATION";
+
 export type VisualQaReport = {
+  status: VisualQaStatus;
+  score: number;
+  blockingDefects: string[];
+  demoLimitations: DemoLimitation[];
+  recommendations: string[];
+  summary: string;
   passed: boolean;
   checks: Array<{ name: string; passed: boolean; detail: string }>;
   defects: string[];
@@ -211,6 +233,7 @@ export type WebsiteFactoryServices = {
   agentRuntime?: WebsiteFactoryAgentRuntime;
   frontendBuilder?: FrontendBuilder;
   deploymentProvider?: DemoDeploymentProvider;
+  allowPreviewWhenFailed?: boolean;
   now?: () => string;
 };
 

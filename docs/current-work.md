@@ -247,3 +247,27 @@ Run `npm run verify`. See `docs/website-factory-status.md`.
 - The default research provider is fixture-tested; live HTTP research is
   implemented but not live-verified.
 - Preview deployment is fixture-tested only.
+
+## Milestone 4: Orchestrator Chat + Demo-Aware QA
+
+Branch: `milestone-4-orchestrator-chat`.
+
+### Scope
+
+Add an authenticated internal Orchestrator chat and make Visual QA
+demo-aware. The chat deterministically routes operator messages to existing
+Website Factory state and tasks without requiring manual agent orchestration.
+
+### Key changes
+
+- `/orchestrator` is now the primary operator interface.
+- `orchestrator_threads`, `orchestrator_messages`, and `orchestrator_tasks`
+  persist conversations and linked tasks.
+- Supported intents: `BUILD_DEMO_FROM_URL`, `CHECK_FACTORY_RUN`,
+  `SHOW_PREVIEW`, `EXPLAIN_EXCEPTION`, and `GENERAL_OPERATOR_QUERY`.
+- Visual QA now distinguishes `PASSED`, `PASSED_WITH_DEMO_LIMITATIONS`, and
+  `FAILED`, with explicit demo-limitation categories.
+
+### Evidence
+
+Run `npm run verify`. See `docs/website-factory-status.md`.

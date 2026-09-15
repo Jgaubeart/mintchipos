@@ -12,7 +12,11 @@ import { buildAutoDesignBrief } from "./brief";
 import { buildFrontendBuildSpec } from "./build-spec";
 import { DeterministicFrontendBuilder } from "./builder";
 import { FixturePlaybookProvider } from "./playbook";
-import { runFunctionalQa, runVisualQa } from "./qa";
+import {
+  normalizeVisualQaReport,
+  runFunctionalQa,
+  runVisualQa,
+} from "./qa";
 import { getDefaultResearchProvider } from "./research";
 import {
   buildAssetAudit,
@@ -328,11 +332,11 @@ export async function runWebsiteFactoryPipeline(
           functionalQa: functional,
         },
       });
-      visual = runtimeOutput.output as VisualQaReport;
+      visual = normalizeVisualQaReport(runtimeOutput.output);
     } else {
       visual = runVisualQa(build.html);
     }
-    const defects = [...functional.defects, ...visual.defects];
+    const defects = [...functional.defects, ...visual.blockingDefects];
 
     while (defects.length > 0 && repairCycles < MAX_REPAIR_CYCLES) {
       repairCycles += 1;
@@ -355,7 +359,7 @@ export async function runWebsiteFactoryPipeline(
           });
       run.buildId = build.buildId;
       functional = runFunctionalQa(build.html);
-      visual = agentRuntime
+      const visualCandidate = agentRuntime
         ? (
             await agentRuntime.executeStage({
               stage: "VISUAL_QA",
@@ -370,9 +374,15 @@ export async function runWebsiteFactoryPipeline(
                 repairCycle: repairCycles,
               },
             })
-          ).output as VisualQaReport
+          ).output
         : runVisualQa(build.html);
-      defects.splice(0, defects.length, ...functional.defects, ...visual.defects);
+      visual = normalizeVisualQaReport(visualCandidate);
+      defects.splice(
+        0,
+        defects.length,
+        ...functional.defects,
+        ...visual.blockingDefects,
+      );
     }
 
     updateStage("FRONTEND_BUILD", "COMPLETED", build, {
@@ -385,6 +395,25 @@ export async function runWebsiteFactoryPipeline(
       "FUNCTIONAL_QA_REPORT",
     );
     completeStage("VISUAL_QA", visual, "VISUAL_QA_REPORT");
+
+    if (
+      visual.status === "FAILED" &&
+      !(services.allowPreviewWhenFailed ?? false)
+    ) {
+      updateStage("PREVIEW_DEPLOYMENT", "BLOCKED", null, {
+        message:
+          "Preview blocked because Visual QA failed and no internal override is present.",
+      });
+      run.status = "READY_FOR_LIVE_VERIFICATION";
+      run.failureReason = visual.blockingDefects.join("; ");
+      run.artifacts = stages
+        .map((stage) => stage.artifact)
+        .filter((artifact): artifact is WebsiteFactoryArtifact =>
+          Boolean(artifact),
+        );
+      run.updatedAt = now();
+      return run;
+    }
 
     const preview = generatePreviewSlug({
       businessName: run.businessName ?? "mint-chip-website",

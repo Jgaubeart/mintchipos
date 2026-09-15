@@ -30,6 +30,11 @@ import type {
   WebsiteFactoryRunStatus,
   WebsiteFactoryStage,
 } from "@/lib/website-factory/constants";
+import type {
+  OrchestratorIntent,
+  OrchestratorMessageRole,
+  OrchestratorTaskStatus,
+} from "@/lib/orchestrator/constants";
 
 export type ProjectRow = {
   id: string;
@@ -250,6 +255,42 @@ export type WebsiteFactoryRunRow = {
 
 export type WebsiteFactoryRun = WebsiteFactoryRunRow;
 
+export type OrchestratorThreadRow = {
+  id: string;
+  owner_id: string;
+  title: string;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type OrchestratorMessageRow = {
+  id: string;
+  thread_id: string;
+  role: OrchestratorMessageRole;
+  content: string;
+  metadata: Record<string, unknown>;
+  created_at: string | null;
+};
+
+export type OrchestratorTaskRow = {
+  id: string;
+  thread_id: string;
+  message_id: string | null;
+  intent: OrchestratorIntent;
+  status: OrchestratorTaskStatus;
+  project_id: string | null;
+  factory_run_id: string | null;
+  deployment_id: string | null;
+  error: Record<string, unknown> | null;
+  created_at: string | null;
+  updated_at: string | null;
+  completed_at: string | null;
+};
+
+export type OrchestratorThread = OrchestratorThreadRow;
+export type OrchestratorMessage = OrchestratorMessageRow;
+export type OrchestratorTask = OrchestratorTaskRow;
+
 export type ProspectScanRow = {
   id: string;
   location: string;
@@ -422,6 +463,24 @@ export type Database = {
         Row: WebsiteFactoryRunRow;
         Insert: Partial<WebsiteFactoryRunRow>;
         Update: Partial<WebsiteFactoryRunRow>;
+        Relationships: [];
+      };
+      orchestrator_threads: {
+        Row: OrchestratorThreadRow;
+        Insert: Partial<OrchestratorThreadRow>;
+        Update: Partial<OrchestratorThreadRow>;
+        Relationships: [];
+      };
+      orchestrator_messages: {
+        Row: OrchestratorMessageRow;
+        Insert: Partial<OrchestratorMessageRow>;
+        Update: Partial<OrchestratorMessageRow>;
+        Relationships: [];
+      };
+      orchestrator_tasks: {
+        Row: OrchestratorTaskRow;
+        Insert: Partial<OrchestratorTaskRow>;
+        Update: Partial<OrchestratorTaskRow>;
         Relationships: [];
       };
       prospect_scans: {
