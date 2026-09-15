@@ -50,3 +50,22 @@ then run the first controlled live pilot through `/factory`.
 - Vercel: CLI is not installed and no MintChipOS token/project config is
   present. No live preview was created.
 - Railway: CLI is not installed and no service/token state is present.
+
+## First live pilot result
+
+Run ID: `9aa5d0d7-6d8e-4a87-915c-fcbcf6967558`
+
+Status: `READY_FOR_LIVE_VERIFICATION` with the frontend build stage blocked by
+a repeated Hermes poll timeout. Completed live stages through
+`CREATIVE_DIRECTION` and `ASSET_PLAN`; `FRONTEND_BUILD`, `FUNCTIONAL_QA`,
+`VISUAL_QA`, and `PREVIEW_DEPLOYMENT` did not complete.
+
+Hermes stages that completed:
+
+- `DESIGN_BRIEF`: `deepseek-v4-pro`, input 21004, output 5361
+- `UX_CONTENT_STRATEGY`: `deepseek-v4-pro`, input 21177, output 2886
+- `CREATIVE_DIRECTION`: `deepseek-v4-pro`, input 23979, output 8873
+
+No estimated cost was returned by Hermes for those runs.
+
+Preview deployment is blocked by missing Vercel preview credentials.
