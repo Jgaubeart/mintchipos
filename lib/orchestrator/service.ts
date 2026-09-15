@@ -8,11 +8,8 @@ import {
   getOrchestratorThread,
   updateOrchestratorThreadTitle,
 } from "./queries";
+import { resolveProductionReadiness } from "./readiness";
 import type { OrchestratorReply } from "./types";
-
-function formatPreviewReply(previewUrl: string): string {
-  return `Demo is ready.\n\n[Open Preview](${previewUrl})`;
-}
 
 export async function runOrchestratorMessage(input: {
   userId: string;
@@ -47,8 +44,15 @@ export async function runOrchestratorMessage(input: {
       const run = await getLatestFactoryRunWithPreview();
       if (run?.preview_url) {
         reply = {
-          content: formatPreviewReply(run.preview_url),
+          content: "Demo is ready.",
           intent: "SHOW_PREVIEW",
+          actions: [
+            {
+              label: "Open Preview",
+              href: run.preview_url,
+              kind: "preview",
+            },
+          ],
           task: {
             title: "Latest Mint Chip demo",
             status: "SUCCEEDED",
@@ -69,38 +73,55 @@ export async function runOrchestratorMessage(input: {
 
     case "EXPLAIN_EXCEPTION": {
       const run = await getLatestFactoryRun();
-      const visualStage = Array.isArray(run?.stages)
-        ? run.stages.find(
-            (stage) =>
-              typeof stage === "object" &&
-              stage !== null &&
-              stage.stage === "VISUAL_QA",
-          )
-        : null;
-      const reasons: string[] = [];
-      if (run?.failure_reason) {
-        reasons.push(run.failure_reason);
-      }
-      if (visualStage?.output) {
-        const output = visualStage.output as Record<string, unknown>;
-        if (Array.isArray(output.demoLimitations) && output.demoLimitations.length) {
-          reasons.push(
-            `Demo limitations: ${output.demoLimitations.join(", ")}.`,
-          );
-        }
-        if (Array.isArray(output.blockingDefects) && output.blockingDefects.length) {
-          reasons.push(
-            `Remaining defects: ${output.blockingDefects.join("; ")}.`,
-          );
-        }
+      const readiness = resolveProductionReadiness(run);
+      const parts: string[] = [];
+
+      if (readiness.previewReady) {
+        parts.push(
+          "The demo is live and functionally working, but it is not production-ready yet.",
+        );
       }
 
+      if (readiness.blockingDefects.length > 0) {
+        parts.push(
+          `Visual QA has ${readiness.blockingDefects.length} blocking interaction defect${readiness.blockingDefects.length === 1 ? "" : "s"}: ${readiness.blockingDefects.join("; ")}.`,
+        );
+      }
+
+      if (readiness.demoLimitations.length > 0) {
+        parts.push(
+          `Demo-only limitations: ${readiness.demoLimitations.join(", ")}.`,
+        );
+      }
+
+      if (readiness.failureReason) {
+        parts.push(`Factory exception: ${readiness.failureReason}.`);
+      }
+
+      if (parts.length === 0) {
+        parts.push(
+          "The demo has no recorded production blocker in canonical state.",
+        );
+      }
+
+      parts.push(
+        readiness.visualQaStatus === "FAILED"
+          ? "Once the blocking defects are fixed, the preview can move to PASSED_WITH_DEMO_LIMITATIONS."
+          : "The factual placeholders still need real business data before production.",
+      );
+
       reply = {
-        content:
-          reasons.length > 0
-            ? `The Mint Chip demo is not fully production-ready because:\n\n- ${reasons.join("\n- ")}`
-            : "The Mint Chip demo has no recorded production blocker in canonical state.",
+        content: parts.join(" "),
         intent: "EXPLAIN_EXCEPTION",
+        actions: readiness.previewUrl
+          ? [
+              {
+                label: "Open Preview",
+                href: readiness.previewUrl,
+                kind: "preview",
+              },
+            ]
+          : [],
         task: run
           ? {
               title: "Latest factory run",
@@ -160,6 +181,7 @@ export async function runOrchestratorMessage(input: {
     content: reply.content,
     metadata: {
       intent: reply.intent,
+      actions: reply.actions ?? [],
     },
   });
 
@@ -176,7 +198,8 @@ export async function runOrchestratorMessage(input: {
 
   await updateOrchestratorThreadTitle(
     activeThread.id,
-    intentTitle(detection.intent, detection.url),
+    reply.task?.title ??
+      intentTitle(detection.intent, detection.url),
   );
 
   return { threadId: activeThread.id, reply };

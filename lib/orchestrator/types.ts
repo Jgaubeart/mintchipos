@@ -13,6 +13,11 @@ export type IntentDetection = {
 export type OrchestratorReply = {
   content: string;
   intent: OrchestratorIntent;
+  actions?: Array<{
+    label: string;
+    href: string;
+    kind: "preview" | "run" | "project" | "deployment";
+  }>;
   task: {
     title: string;
     status: OrchestratorTaskStatus;
@@ -53,4 +58,3 @@ export type OrchestratorTaskRow = {
   updated_at: string | null;
   completed_at: string | null;
 };
-

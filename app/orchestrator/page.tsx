@@ -107,6 +107,28 @@ export default async function OrchestratorPage({
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{message.content}</p>
+                    {message.role === "ORCHESTRATOR" &&
+                    Array.isArray(message.metadata.actions) ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {(
+                          message.metadata.actions as Array<{
+                            label: string;
+                            href: string;
+                            kind?: string;
+                          }>
+                        ).map((action) => (
+                          <a
+                            key={`${action.label}-${action.href}`}
+                            href={action.href}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                          >
+                            {action.label}
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 ))
               )}
