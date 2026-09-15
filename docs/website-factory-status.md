@@ -89,3 +89,15 @@ Changes:
   `confidence = 0`.
 
 Recovered frontend build ID: `mintchipweb-one-page-20260915`.
+
+## First live preview
+
+- Preview URL: `https://mint-chip-v2fe-bizk1azio-mint-chip.vercel.app`
+- Vercel deployment ID: `dpl_DZdLeMFmtJa2iQcgMPkRSFw6HoBH`
+- Project: `mint-chip-v2fe`
+- Build ID: `mintchipweb-one-page-20260915`
+- Target: `PREVIEW` only; no production DNS or production domain was changed.
+
+The deployment is protected by Vercel Deployment Protection and was
+smoke-tested with `vercel curl`, which returned HTTP 200, correct title/meta,
+viewport, contact section, and demo disclosures.
