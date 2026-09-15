@@ -61,7 +61,9 @@ export async function claimEngineeringTask(
       started_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .in("status", ["DRAFT", "QUEUED"])
+    .in("status", ["DRAFT", "QUEUED", "BLOCKED", "FAILED"])
+    .eq("approval_state", "AUTO_APPROVED")
+    .is("commit_sha", null)
     .eq("id", taskId)
     .select()
     .maybeSingle();
@@ -238,6 +240,7 @@ export async function updateEngineeringTask(input: {
   taskId: string;
   status?: EngineeringTaskStatus;
   workingBranch?: string | null;
+  baseBranch?: string | null;
   commitSha?: string | null;
   testsSummary?: string | null;
   previewDeploymentId?: string | null;
@@ -255,6 +258,9 @@ export async function updateEngineeringTask(input: {
   }
   if (input.workingBranch !== undefined) {
     update.working_branch = input.workingBranch;
+  }
+  if (input.baseBranch !== undefined) {
+    update.base_branch = input.baseBranch;
   }
   if (input.commitSha !== undefined) {
     update.commit_sha = input.commitSha;

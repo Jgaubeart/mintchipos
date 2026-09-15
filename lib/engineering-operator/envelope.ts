@@ -23,7 +23,7 @@ export function buildEngineeringTaskEnvelope(input: {
   return {
     taskId: input.task.id,
     intent: input.task.intent,
-    goal: input.task.title,
+    goal: input.task.description || input.task.title,
     acceptanceCriteria: criteria,
     repository: input.task.repository,
     baseBranch: input.task.base_branch,

@@ -16,6 +16,7 @@ import {
   createEngineeringTask,
   createEngineeringTaskEvent,
   claimEngineeringTask,
+  getEngineeringTaskById,
   getEngineeringTaskByIdempotencyKey,
   updateEngineeringTask,
 } from "@/lib/engineering-operator/queries";
@@ -33,7 +34,10 @@ import {
   engineeringExecutionIdempotencyKey,
 } from "@/lib/engineering-operator/executor";
 import { defaultEngineeringRuntime } from "@/lib/engineering-operator/runtime";
-import { ENGINEERING_INTENTS } from "@/lib/engineering-operator/constants";
+import {
+  DEFAULT_ENGINEERING_BASE_BRANCH,
+  ENGINEERING_INTENTS,
+} from "@/lib/engineering-operator/constants";
 import type { EngineeringTask } from "@/lib/supabase/database.types";
 import type {
   EngineeringIntent,
@@ -83,11 +87,12 @@ function mapEngineeringStatus(
 
 async function executeQueuedEngineeringTask(taskId: string): Promise<void> {
   try {
-    const task = await claimEngineeringTask(taskId);
-    if (!task) {
+    const claimedTask = await claimEngineeringTask(taskId);
+    if (!claimedTask) {
       return;
     }
 
+    const task = (await getEngineeringTaskById(taskId)) ?? claimedTask;
     const envelope = buildEngineeringTaskEnvelope({ task });
     await executeEngineeringTask({
       task,
@@ -163,6 +168,9 @@ async function handleEngineeringRequest(input: {
     ownerId: input.userId,
     content: input.content,
   });
+  const baseBranch =
+    process.env.ENGINEERING_OPERATOR_BASE_BRANCH ||
+    DEFAULT_ENGINEERING_BASE_BRANCH;
 
   const existing = await getEngineeringTaskByIdempotencyKey({
     ownerId: input.userId,
@@ -171,7 +179,14 @@ async function handleEngineeringRequest(input: {
 
   let task: EngineeringTask;
   if (existing) {
-    task = existing;
+    task = await updateEngineeringTask({
+      taskId: existing.id,
+      workingBranch:
+        existing.working_branch ??
+        suggestEngineeringBranch(intent, input.content),
+      baseBranch:
+        existing.base_branch === baseBranch ? undefined : baseBranch,
+    }).then((updated) => updated ?? existing);
   } else {
     task = await createEngineeringTask({
       ownerId: input.userId,
@@ -192,6 +207,7 @@ async function handleEngineeringRequest(input: {
       riskLevel: approval.riskLevel,
       approvalState: approval.approvalState,
       workingBranch: suggestEngineeringBranch(intent, input.content),
+      baseBranch,
       orchestratorThreadId: input.threadId,
       orchestratorMessageId: input.orchestratorMessageId,
     });

@@ -15,13 +15,14 @@ export async function sendOrchestratorMessage(
     redirect(`/orchestrator${threadId ? `?thread=${threadId}` : ""}`);
   }
 
+  let threadIdToOpen: string;
   try {
     const result = await runOrchestratorMessage({
       userId: user.id,
       content,
       threadId,
     });
-    redirect(`/orchestrator?thread=${encodeURIComponent(result.threadId)}`);
+    threadIdToOpen = result.threadId;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Orchestrator request failed.";
@@ -29,5 +30,6 @@ export async function sendOrchestratorMessage(
       `/orchestrator${threadId ? `?thread=${encodeURIComponent(threadId)}` : ""}?error=${encodeURIComponent(message)}`,
     );
   }
-}
 
+  redirect(`/orchestrator?thread=${encodeURIComponent(threadIdToOpen)}`);
+}

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { MAX_ENGINEERING_REPAIR_ATTEMPTS } from "./constants";
@@ -112,7 +112,7 @@ export function verificationSummaryFromCommand(
   }
 
   return compact(
-    result.stderr || result.stdout || "Verification failed.",
+    (result.stderr || result.stdout || "Verification failed.").slice(-2000),
   );
 }
 
@@ -171,28 +171,36 @@ function orchestratorCardPlan(): EngineeringMutationPlan {
         throw new Error(`Required file is missing: ${relativePath}`);
       }
 
-      if (existing.includes(newBlock)) {
+      const normalized = existing.replace(/\r\n/g, "\n");
+
+      if (normalized.includes(newBlock)) {
         return;
       }
 
-      if (!existing.includes(oldBlock)) {
+      if (!normalized.includes(oldBlock)) {
+        const head = await workspace.run("git", ["rev-parse", "HEAD"]);
         throw new Error(
-          "The Orchestrator task card no longer contains the expected commit block; inspect the file before applying a scoped change.",
+          `The Orchestrator task card no longer contains the expected commit block; inspect the file before applying a scoped change. marker=${normalized.includes("task.commit_sha") ? "present" : "missing"} head=${head.code === 0 ? head.stdout.trim() : "unknown"}`,
         );
       }
 
       await workspace.writeText(
         relativePath,
-        existing.replace(oldBlock, newBlock),
+        normalized.replace(oldBlock, newBlock),
       );
     },
     async repair(workspace) {
       const relativePath = "app/orchestrator/page.tsx";
       const existing = await workspace.readText(relativePath);
-      if (existing && !existing.includes(newBlock) && existing.includes(oldBlock)) {
+      const normalized = existing?.replace(/\r\n/g, "\n");
+      if (
+        normalized &&
+        !normalized.includes(newBlock) &&
+        normalized.includes(oldBlock)
+      ) {
         await workspace.writeText(
           relativePath,
-          existing.replace(oldBlock, newBlock),
+          normalized.replace(oldBlock, newBlock),
         );
       }
     },
@@ -243,6 +251,15 @@ export class LocalEngineeringWorkspace
 
     await mkdir(this.workspaceParent, { recursive: true });
 
+    await runGit(this.repositoryRoot, "worktree", [
+      "remove",
+      "--force",
+      workspacePath,
+    ]);
+    await rm(workspacePath, { recursive: true, force: true }).catch(
+      () => undefined,
+    );
+
     const result = await runGit(
       this.repositoryRoot,
       "worktree",
@@ -254,11 +271,7 @@ export class LocalEngineeringWorkspace
       );
     }
 
-    const branchResult = await runGit(
-      workspacePath,
-      "switch",
-      ["-c", branch],
-    );
+    const branchResult = await runGit(workspacePath, "switch", ["-C", branch]);
     if (branchResult.code !== 0) {
       await runGit(this.repositoryRoot, "worktree", [
         "remove",
@@ -271,6 +284,34 @@ export class LocalEngineeringWorkspace
     }
 
     this.rootPath = workspacePath;
+
+    await copyFile(
+      path.join(this.repositoryRoot, ".env.local"),
+      path.join(workspacePath, ".env.local"),
+    ).catch(() => undefined);
+
+    const installResult = await runProcess("npm", ["ci"], workspacePath);
+    if (installResult.code !== 0) {
+      await runGit(this.repositoryRoot, "worktree", [
+        "remove",
+        "--force",
+        workspacePath,
+      ]);
+      throw new Error(
+        `Could not install dependencies in the isolated workspace: ${compact(installResult.stderr || installResult.stdout)}`,
+      );
+    }
+
+    const typegenResult = await runProcess(
+      "npx",
+      ["next", "typegen"],
+      workspacePath,
+    );
+    if (typegenResult.code !== 0) {
+      throw new Error(
+        `Could not generate Next.js route types in the isolated workspace: ${compact(typegenResult.stderr || typegenResult.stdout)}`,
+      );
+    }
   }
 
   async run(
@@ -300,7 +341,7 @@ export class LocalEngineeringWorkspace
 
     return result.stdout
       .split(/\r?\n/)
-      .map((line) => line.trim().slice(3))
+      .map((line) => line.slice(3).trim())
       .filter((file) => file.length > 0);
   }
 
@@ -652,12 +693,35 @@ async function runProcess(
   cwd: string,
 ): Promise<EngineeringWorkerCommandResult> {
   return new Promise((resolve) => {
-    const child = spawn(command, args, {
-      cwd,
-      shell: false,
-      windowsHide: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const useShell = process.platform === "win32" && command !== "git";
+    const childEnv =
+      command === "npm" &&
+      args[0] === "run" &&
+      args[1] === "verify"
+        ? {
+            ...process.env,
+            NODE_ENV: "production",
+          }
+        : process.env;
+    let child;
+    try {
+      child = spawn(command, args, {
+        cwd,
+        shell: useShell,
+        windowsHide: true,
+        env: childEnv,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (error) {
+      resolve({
+        code: null,
+        stdout: "",
+        stderr: `spawn ${command} failed: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`,
+      });
+      return;
+    }
 
     let stdout = "";
     let stderr = "";
