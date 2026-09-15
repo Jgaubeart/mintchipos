@@ -6,6 +6,7 @@ import {
   type WebsiteFactoryStage,
   type WebsiteFactoryStageStatus,
 } from "./constants";
+import { criticalAgentKey } from "./agent-schemas";
 import { classifyIndustry } from "./classify";
 import { buildAutoDesignBrief } from "./brief";
 import { DeterministicFrontendBuilder } from "./builder";
@@ -19,13 +20,19 @@ import {
   buildUxContentStrategy,
 } from "./strategy";
 import type {
+  AutoDesignBriefResult,
+  CreativeDirection,
+  FrontendBuildResult,
   PreviewDeploymentResult,
+  UxContentStrategy,
+  VisualQaReport,
   WebsiteFactoryArtifact,
   WebsiteFactoryInput,
   WebsiteFactoryRun,
   WebsiteFactoryServices,
   WebsiteFactoryStageResult,
 } from "./types";
+import { validateDesignBrief } from "../design-brief/validate";
 
 function makeId(): string {
   const random = globalThis.crypto?.randomUUID?.();
@@ -69,6 +76,7 @@ export async function runWebsiteFactoryPipeline(
     services.playbookProvider ?? new FixturePlaybookProvider();
   const frontendBuilder =
     services.frontendBuilder ?? new DeterministicFrontendBuilder();
+  const agentRuntime = services.agentRuntime ?? null;
   const deploymentProvider =
     services.deploymentProvider ?? getDemoDeploymentProvider();
 
@@ -166,43 +174,103 @@ export async function runWebsiteFactoryPipeline(
       production_stage: null,
       description: research.description,
     };
-    const briefResult = input.existingBrief
-      ? {
-          brief: input.existingBrief,
+    let briefResult: AutoDesignBriefResult;
+    if (agentRuntime) {
+      const runtimeOutput = await agentRuntime.executeStage({
+        stage: "DESIGN_BRIEF",
+        agentKey: criticalAgentKey("DESIGN_BRIEF") ?? "ORCHESTRATOR",
+        projectId: input.projectId,
+        stageInput: {
+          businessResearch: research,
+          industryClassification: classification,
+          industryPlaybook: playbookSelection.playbook,
+          existingBrief: input.existingBrief ?? null,
           precedence: [
             "SYSTEM_OR_MINT_CHIP_BUSINESS_RULES",
             "PROJECT_DESIGN_DIRECTION_BRIEF",
             "INDUSTRY_PLAYBOOK",
             "AGENT_CREATIVE_JUDGMENT",
           ],
-          lineage: {
-            businessResearch: true,
-            industryPlaybook: true,
-            systemRules: true,
-          },
-        }
-      : buildAutoDesignBrief({
-          project,
-          research,
-          classification,
-          playbook: playbookSelection.playbook,
-        });
+        },
+      });
+      briefResult = runtimeOutput.output as AutoDesignBriefResult;
+      const validation = validateDesignBrief(briefResult.brief);
+      if (!validation.ok) {
+        throw new Error(
+          `Design Brief agent output failed validation: ${validation.errors.join(" ")}`,
+        );
+      }
+    } else {
+      briefResult = input.existingBrief
+        ? {
+            brief: input.existingBrief,
+            precedence: [
+              "SYSTEM_OR_MINT_CHIP_BUSINESS_RULES",
+              "PROJECT_DESIGN_DIRECTION_BRIEF",
+              "INDUSTRY_PLAYBOOK",
+              "AGENT_CREATIVE_JUDGMENT",
+            ],
+            lineage: {
+              businessResearch: true,
+              industryPlaybook: true,
+              systemRules: true,
+            },
+          }
+        : buildAutoDesignBrief({
+            project,
+            research,
+            classification,
+            playbook: playbookSelection.playbook,
+          });
+    }
     completeStage("DESIGN_BRIEF", briefResult, "DESIGN_DIRECTION_BRIEF");
 
-    const uxContent = buildUxContentStrategy({
-      brief: briefResult.brief,
-      research,
-    });
+    let uxContent: UxContentStrategy;
+    if (agentRuntime) {
+      const runtimeOutput = await agentRuntime.executeStage({
+        stage: "UX_CONTENT_STRATEGY",
+        agentKey: criticalAgentKey("UX_CONTENT_STRATEGY") ?? "UX_CONTENT_STRATEGIST",
+        projectId: input.projectId,
+        stageInput: {
+          businessResearch: research,
+          industryPlaybook: playbookSelection.playbook,
+          designBrief: briefResult.brief,
+        },
+      });
+      uxContent = runtimeOutput.output as UxContentStrategy;
+    } else {
+      uxContent = buildUxContentStrategy({
+        brief: briefResult.brief,
+        research,
+      });
+    }
     completeStage("UX_CONTENT_STRATEGY", uxContent, "UX_CONTENT_STRATEGY");
 
     const assetAudit = buildAssetAudit(research);
     completeStage("ASSET_AUDIT", assetAudit, "ASSET_AUDIT");
 
-    const creative = buildCreativeDirection({
-      brief: briefResult.brief,
-      research,
-      strategy: uxContent,
-    });
+    let creative: CreativeDirection;
+    if (agentRuntime) {
+      const runtimeOutput = await agentRuntime.executeStage({
+        stage: "CREATIVE_DIRECTION",
+        agentKey: criticalAgentKey("CREATIVE_DIRECTION") ?? "CREATIVE_DIRECTOR",
+        projectId: input.projectId,
+        stageInput: {
+          businessResearch: research,
+          industryPlaybook: playbookSelection.playbook,
+          designBrief: briefResult.brief,
+          uxContentStrategy: uxContent,
+          assetAudit,
+        },
+      });
+      creative = runtimeOutput.output as CreativeDirection;
+    } else {
+      creative = buildCreativeDirection({
+        brief: briefResult.brief,
+        research,
+        strategy: uxContent,
+      });
+    }
     completeStage("CREATIVE_DIRECTION", creative, "CREATIVE_DIRECTION");
 
     const assetPlan = buildAssetPlan({
@@ -211,34 +279,104 @@ export async function runWebsiteFactoryPipeline(
     });
     completeStage("ASSET_PLAN", assetPlan, "ASSET_PLAN");
 
-    let build = await frontendBuilder.build({
-      brief: briefResult.brief,
-      research,
-      strategy: uxContent,
-      creative,
-      assets: assetPlan,
-    });
-    run.buildId = build.buildId;
-    completeStage("FRONTEND_BUILD", build, "WEBSITE_SOURCE");
-
-    let repairCycles = 0;
-    let functional = runFunctionalQa(build.html);
-    let visual = runVisualQa(build.html);
-    const defects = [...functional.defects, ...visual.defects];
-
-    while (defects.length > 0 && repairCycles < MAX_REPAIR_CYCLES) {
-      repairCycles += 1;
+    let build: FrontendBuildResult;
+    if (agentRuntime) {
+      const runtimeOutput = await agentRuntime.executeStage({
+        stage: "FRONTEND_BUILD",
+        agentKey: criticalAgentKey("FRONTEND_BUILD") ?? "FRONTEND_BUILDER",
+        projectId: input.projectId,
+        stageInput: {
+          businessResearch: research,
+          industryPlaybook: playbookSelection.playbook,
+          designBrief: briefResult.brief,
+          uxContentStrategy: uxContent,
+          creativeDirection: creative,
+          assetAudit,
+          assetPlan,
+        },
+      });
+      build = runtimeOutput.output as FrontendBuildResult;
+    } else {
       build = await frontendBuilder.build({
         brief: briefResult.brief,
         research,
         strategy: uxContent,
         creative,
         assets: assetPlan,
-        defects,
       });
+    }
+    run.buildId = build.buildId;
+    completeStage("FRONTEND_BUILD", build, "WEBSITE_SOURCE");
+
+    let repairCycles = 0;
+    let functional = runFunctionalQa(build.html);
+    let visual: VisualQaReport;
+    if (agentRuntime) {
+      const runtimeOutput = await agentRuntime.executeStage({
+        stage: "VISUAL_QA",
+        agentKey: criticalAgentKey("VISUAL_QA") ?? "VISUAL_QA",
+        projectId: input.projectId,
+        stageInput: {
+          html: build.html,
+          designBrief: briefResult.brief,
+          creativeDirection: creative,
+          industryPlaybook: playbookSelection.playbook,
+          functionalQa: functional,
+        },
+      });
+      visual = runtimeOutput.output as VisualQaReport;
+    } else {
+      visual = runVisualQa(build.html);
+    }
+    const defects = [...functional.defects, ...visual.defects];
+
+    while (defects.length > 0 && repairCycles < MAX_REPAIR_CYCLES) {
+      repairCycles += 1;
+      build = agentRuntime
+        ? (
+            await agentRuntime.executeStage({
+              stage: "FRONTEND_BUILD",
+              agentKey: criticalAgentKey("FRONTEND_BUILD") ?? "FRONTEND_BUILDER",
+              projectId: input.projectId,
+              stageInput: {
+                businessResearch: research,
+                industryPlaybook: playbookSelection.playbook,
+                designBrief: briefResult.brief,
+                uxContentStrategy: uxContent,
+                creativeDirection: creative,
+                assetAudit,
+                assetPlan,
+                defects,
+              },
+            })
+          ).output as FrontendBuildResult
+        : await frontendBuilder.build({
+            brief: briefResult.brief,
+            research,
+            strategy: uxContent,
+            creative,
+            assets: assetPlan,
+            defects,
+          });
       run.buildId = build.buildId;
       functional = runFunctionalQa(build.html);
-      visual = runVisualQa(build.html);
+      visual = agentRuntime
+        ? (
+            await agentRuntime.executeStage({
+              stage: "VISUAL_QA",
+              agentKey: criticalAgentKey("VISUAL_QA") ?? "VISUAL_QA",
+              projectId: input.projectId,
+              stageInput: {
+                html: build.html,
+                designBrief: briefResult.brief,
+                creativeDirection: creative,
+                industryPlaybook: playbookSelection.playbook,
+                functionalQa: functional,
+                repairCycle: repairCycles,
+              },
+            })
+          ).output as VisualQaReport
+        : runVisualQa(build.html);
       defects.splice(0, defects.length, ...functional.defects, ...visual.defects);
     }
 

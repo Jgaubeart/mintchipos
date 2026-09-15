@@ -208,9 +208,24 @@ export type WebsiteFactoryRun = {
 export type WebsiteFactoryServices = {
   researchProvider?: WebsiteFactoryResearchProvider;
   playbookProvider?: PlaybookSelectionProvider;
+  agentRuntime?: WebsiteFactoryAgentRuntime;
   frontendBuilder?: FrontendBuilder;
   deploymentProvider?: DemoDeploymentProvider;
   now?: () => string;
+};
+
+export type WebsiteFactoryAgentRuntime = {
+  executeStage(
+    input: {
+      stage: WebsiteFactoryStage;
+      agentKey: string;
+      projectId: string;
+      stageInput: unknown;
+    },
+  ): Promise<{
+    output: unknown;
+    agentRunId: string;
+  }>;
 };
 
 export type WebsiteFactoryResearchProvider = {

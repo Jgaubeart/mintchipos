@@ -7,6 +7,7 @@ import {
   persistFactoryPreviewDeployment,
   persistWebsiteFactoryRun,
 } from "@/lib/website-factory/queries";
+import { getWebsiteFactoryAgentRuntime } from "@/lib/website-factory/agents";
 import { runWebsiteFactoryPipeline } from "@/lib/website-factory/pipeline";
 import { HttpResearchProvider } from "@/lib/website-factory/research";
 import type { GenerateDemoFormState } from "./types";
@@ -65,12 +66,18 @@ export async function generateDemo(
       },
       {
         researchProvider: new HttpResearchProvider(),
+        agentRuntime: getWebsiteFactoryAgentRuntime(),
       },
     );
 
-    // A normal mock preview is created, but no live Vercel deployment or live
-    // business research is claimed until the operator approves those steps.
-    if (run.status === "COMPLETED") {
+    if (
+      run.status === "FAILED" &&
+      run.failureReason?.includes("Live Hermes agent execution is not enabled")
+    ) {
+      run.status = "READY_FOR_LIVE_VERIFICATION";
+      run.failureReason =
+        "Critical factory stages are wired to Hermes but live paid execution is not enabled.";
+    } else if (run.status === "COMPLETED") {
       run.status = "READY_FOR_LIVE_VERIFICATION";
       run.failureReason =
         "Fixture-tested preview prepared; live Vercel verification is pending.";
@@ -90,4 +97,3 @@ export async function generateDemo(
     };
   }
 }
-
