@@ -187,4 +187,4 @@ export class LocalRepositoryRuntime {
   }
 }
 
-export const defaultEngineeringRuntime = new LocalRepositoryRuntime();
+export { defaultEngineeringWorker as defaultEngineeringRuntime } from "./worker";

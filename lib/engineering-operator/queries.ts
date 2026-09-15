@@ -50,6 +50,29 @@ export async function getEngineeringTaskById(
   return data;
 }
 
+export async function claimEngineeringTask(
+  taskId: string,
+): Promise<EngineeringTask | null> {
+  const supabase = await createClient<Database>();
+  const { data, error } = await supabase
+    .from("engineering_tasks")
+    .update({
+      status: "RUNNING",
+      started_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .in("status", ["DRAFT", "QUEUED"])
+    .eq("id", taskId)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 export async function getEngineeringTaskByIdempotencyKey(input: {
   ownerId: string;
   idempotencyKey: string;

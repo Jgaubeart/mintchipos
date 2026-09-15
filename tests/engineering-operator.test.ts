@@ -19,6 +19,16 @@ import type {
   EngineeringExecutionResult,
   EngineeringTask,
 } from "../lib/engineering-operator/types";
+import {
+  canExecuteEngineeringMutation,
+  isEngineeringMutationIntent,
+  LocalEngineeringWorker,
+  resolveEngineeringWorkspacePath,
+  selectEngineeringMutationPlan,
+  shouldRetryEngineeringVerification,
+  type EngineeringWorkerCommandResult,
+  type EngineeringWorkerWorkspace,
+} from "../lib/engineering-operator/worker";
 
 function task(overrides: Partial<EngineeringTask> = {}): EngineeringTask {
   return {
@@ -348,4 +358,230 @@ test("engineering operator never exposes arbitrary shell execution", () => {
   assert.ok(prohibited.includes("bypass authentication"));
   assert.ok(prohibited.includes("bypass RLS"));
   assert.ok(!prohibited.includes("run arbitrary shell command"));
+});
+
+function improvementTask(): EngineeringTask {
+  const text =
+    "Improve the Orchestrator engineering task card so completed tasks show the commit SHA and verification result clearly.";
+  return task({
+    id: "improvement-task",
+    intent: "ENGINEERING_BUILD_FEATURE",
+    title: text,
+    description: text,
+    risk_level: "LOW",
+    working_branch: "milestone-5/feature-improve-orchestrator-card",
+    target_environment: "PREVIEW",
+    approval_state: "AUTO_APPROVED",
+  });
+}
+
+const ORCHESTRATOR_COMMIT_BLOCK = `                      {task.commit_sha ? (
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          Commit: {task.commit_sha}
+                        </p>
+                      ) : null}`;
+
+function fakeWorkspace(input: {
+  files?: Record<string, string>;
+  responses?: EngineeringWorkerCommandResult[];
+  changedFiles?: string[];
+  commitSha?: string;
+}): EngineeringWorkerWorkspace & {
+  runCalls: string[];
+  commitCalls: number;
+} {
+  const files = new Map(
+    Object.entries(
+      input.files ?? {
+        "app/orchestrator/page.tsx": ORCHESTRATOR_COMMIT_BLOCK,
+      },
+    ),
+  );
+  const responses = [...(input.responses ?? [])];
+  const workspace = {
+    rootPath: "C:\\fake-workspace",
+    runCalls: [] as string[],
+    commitCalls: 0,
+    async prepare() {},
+    async run(command: string) {
+      workspace.runCalls.push(command);
+      return (
+        responses.shift() ?? { code: 0, stdout: "passed", stderr: "" }
+      );
+    },
+    async readText(relativePath: string) {
+      return files.get(relativePath) ?? null;
+    },
+    async writeText(relativePath: string, content: string) {
+      files.set(relativePath, content);
+    },
+    async changedFiles() {
+      return input.changedFiles ?? [];
+    },
+    async commit() {
+      workspace.commitCalls += 1;
+      return input.commitSha ?? "abc1234";
+    },
+    async cleanup() {},
+  };
+
+  return workspace;
+}
+
+test("engineering mutation intents are bounded to scoped code work", () => {
+  assert.equal(isEngineeringMutationIntent("ENGINEERING_FIX_BUG"), true);
+  assert.equal(isEngineeringMutationIntent("ENGINEERING_RUN_TESTS"), false);
+  assert.equal(
+    isEngineeringMutationIntent("ENGINEERING_SHOW_STATUS"),
+    false,
+  );
+});
+
+test("prohibited or high-risk engineering work is rejected before execution", () => {
+  const lowEnvelope = buildEngineeringTaskEnvelope({
+    task: improvementTask(),
+  });
+  assert.equal(canExecuteEngineeringMutation(lowEnvelope).allowed, true);
+
+  const highEnvelope = buildEngineeringTaskEnvelope({
+    task: improvementTask(),
+  });
+  highEnvelope.riskLevel = "HIGH";
+  highEnvelope.approvalState = "REQUIRED";
+  assert.equal(canExecuteEngineeringMutation(highEnvelope).allowed, false);
+});
+
+test("the first pilot plan only changes the Orchestrator result card", async () => {
+  const workspace = fakeWorkspace({
+    files: {
+      "app/orchestrator/page.tsx": ORCHESTRATOR_COMMIT_BLOCK,
+    },
+  });
+  const envelope = buildEngineeringTaskEnvelope({
+    task: improvementTask(),
+  });
+  const plan = selectEngineeringMutationPlan(envelope);
+
+  assert.ok(plan);
+  await plan.apply(workspace);
+  const patched = await workspace.readText("app/orchestrator/page.tsx");
+  assert.match(patched ?? "", /Verification:/);
+  assert.match(patched ?? "", /task\.verification_status/);
+});
+
+test("worker workspace paths cannot escape the workspace root", () => {
+  assert.throws(() =>
+    resolveEngineeringWorkspacePath("C:\\workspace", "..\\secret"),
+  );
+  assert.equal(
+    resolveEngineeringWorkspacePath(
+      "C:\\workspace",
+      "app\\orchestrator\\page.tsx",
+    ),
+    "C:\\workspace\\app\\orchestrator\\page.tsx",
+  );
+});
+
+test("worker creates a branch, verifies, and commits a scoped change", async () => {
+  const workspace = fakeWorkspace({
+    changedFiles: ["app/orchestrator/page.tsx"],
+    commitSha: "def4567",
+  });
+  const worker = new LocalEngineeringWorker({
+    workspace,
+    allowCodeMutation: true,
+    maxRepairAttempts: 1,
+  });
+  const envelope = buildEngineeringTaskEnvelope({
+    task: improvementTask(),
+  });
+
+  const result = await worker.executeTask(envelope);
+
+  assert.equal(result.status, "SUCCEEDED");
+  assert.equal(result.commitSha, "def4567");
+  assert.equal(result.workingBranch, "milestone-5/feature-improve-orchestrator-card");
+  assert.equal(workspace.commitCalls, 1);
+  assert.ok(result.events.some((event) => event.type === "BRANCH_CREATED"));
+  assert.ok(result.events.some((event) => event.type === "TESTS_PASSED"));
+});
+
+test("worker marks a task failed when verification does not pass", async () => {
+  const workspace = fakeWorkspace({
+    responses: [
+      {
+        code: 1,
+        stdout: "",
+        stderr: "npm run verify failed",
+      },
+    ],
+  });
+  const worker = new LocalEngineeringWorker({
+    workspace,
+    allowCodeMutation: true,
+    maxRepairAttempts: 1,
+  });
+  const envelope = buildEngineeringTaskEnvelope({
+    task: improvementTask(),
+  });
+
+  const result = await worker.executeTask(envelope);
+
+  assert.equal(result.status, "FAILED");
+  assert.equal(result.commitSha, null);
+  assert.equal(workspace.commitCalls, 0);
+  assert.ok(result.events.some((event) => event.type === "TESTS_FAILED"));
+});
+
+test("worker repairs are bounded and do not loop past the attempt limit", async () => {
+  const workspace = fakeWorkspace({
+    responses: [
+      { code: 1, stdout: "", stderr: "first failure" },
+      { code: 1, stdout: "", stderr: "second failure" },
+      { code: 0, stdout: "passed", stderr: "" },
+    ],
+    changedFiles: ["app/orchestrator/page.tsx"],
+    commitSha: "retry123",
+  });
+  const worker = new LocalEngineeringWorker({
+    workspace,
+    allowCodeMutation: true,
+    maxRepairAttempts: 3,
+  });
+  const envelope = buildEngineeringTaskEnvelope({
+    task: improvementTask(),
+  });
+
+  const result = await worker.executeTask(envelope);
+
+  assert.equal(result.status, "SUCCEEDED");
+  assert.equal(workspace.runCalls.length, 3);
+  assert.equal(
+    result.events.find((event) => event.type === "TESTS_PASSED")?.metadata
+      ?.attempts,
+    3,
+  );
+  assert.equal(shouldRetryEngineeringVerification({ attempt: 3, maxAttempts: 3 }), false);
+});
+
+test("deterministic run-tests worker reports verification without mutating", async () => {
+  const workspace = fakeWorkspace({});
+  const worker = new LocalEngineeringWorker({
+    workspace,
+    allowLocalCommands: true,
+  });
+  const runTestsTask = task({
+    intent: "ENGINEERING_RUN_TESTS",
+    title: "Run verification suite",
+    working_branch: null,
+  });
+
+  const result = await worker.executeTask(
+    buildEngineeringTaskEnvelope({ task: runTestsTask }),
+  );
+
+  assert.equal(result.status, "SUCCEEDED");
+  assert.equal(result.commitSha, null);
+  assert.equal(workspace.runCalls[0], "npm");
+  assert.ok(result.events.some((event) => event.type === "TESTS_PASSED"));
 });

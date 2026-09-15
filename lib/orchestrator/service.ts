@@ -15,7 +15,7 @@ import type { OrchestratorTaskStatus } from "./constants";
 import {
   createEngineeringTask,
   createEngineeringTaskEvent,
-  getEngineeringTaskById,
+  claimEngineeringTask,
   getEngineeringTaskByIdempotencyKey,
   updateEngineeringTask,
 } from "@/lib/engineering-operator/queries";
@@ -83,7 +83,7 @@ function mapEngineeringStatus(
 
 async function executeQueuedEngineeringTask(taskId: string): Promise<void> {
   try {
-    const task = await getEngineeringTaskById(taskId);
+    const task = await claimEngineeringTask(taskId);
     if (!task) {
       return;
     }

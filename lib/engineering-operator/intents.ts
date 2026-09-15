@@ -7,7 +7,7 @@ import type { EngineeringIntentDetection } from "./types";
 const FIX_PATTERN =
   /\b(fix|repair|resolve|debug)\b|\bbug\b|\bdefect\b|\bbroken\b|\bnot working\b/i;
 const FEATURE_PATTERN =
-  /\b(add|build|implement|create|develop|write)\b.*\b(feature|support|page|route|integration|draft|generation)\b/i;
+  /\b(add|build|implement|create|develop|write|improve|enhance|refine)\b.*\b(feature|support|page|route|integration|draft|generation|card|ui|ux|orchestrator)\b/i;
 const CONTINUE_PATTERN =
   /\bcontinue\b.*\bbuilding\b|\bcontinue\b.*\bmintchipos\b|\bovernight\b|\bpick up where\b/i;
 const TEST_PATTERN =

@@ -86,10 +86,12 @@ export type EngineeringTaskEnvelope = {
   acceptanceCriteria: string[];
   repository: string;
   baseBranch: string;
+  workingBranch: string | null;
   allowedActions: string[];
   prohibitedActions: string[];
   riskLevel: EngineeringRiskLevel;
   approvalState: EngineeringApprovalState;
+  previewRequested: boolean;
   projectContext: Record<string, unknown>;
   relevantFiles: string[];
   relevantDocs: string[];

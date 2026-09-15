@@ -27,10 +27,14 @@ export function buildEngineeringTaskEnvelope(input: {
     acceptanceCriteria: criteria,
     repository: input.task.repository,
     baseBranch: input.task.base_branch,
+    workingBranch: input.task.working_branch,
     allowedActions: allowedEngineeringActions(input.task.risk_level),
     prohibitedActions: prohibitedEngineeringActions(),
     riskLevel: input.task.risk_level,
     approvalState: input.task.approval_state,
+    previewRequested:
+      input.task.intent === "ENGINEERING_DEPLOY_PREVIEW" ||
+      input.task.target_environment === "PREVIEW",
     projectContext: input.projectContext ?? {},
     relevantFiles: input.relevantFiles ?? [],
     relevantDocs: input.relevantDocs ?? [

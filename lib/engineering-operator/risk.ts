@@ -42,7 +42,7 @@ const MEDIUM_PATTERNS = [
 ] as const;
 
 const LOW_PATTERNS = [
-  /\bcopy\b|\bui\b|\bcss\b|\bstyling\b/i,
+  /\bcopy\b|\bui\b|\bcss\b|\bstyling\b|\bcard\b|\borchestrator\b/i,
   /\btest(s)?\b/i,
   /\bdocumentation\b|\bdocs\b/i,
   /\bfixture\b/i,
